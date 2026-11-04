@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kronos Financial Prediction Web UI</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Keep this aligned with plotly==5.17.0 (bundles Plotly.js 2.26.0). -->
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         * {
@@ -481,6 +482,21 @@
 
                 <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
 
+                <!-- Real Market Data Download -->
+                <div class="form-group">
+                    <label>Download Real Market Data:</label>
+                    <button id="fetch-btc-btn" class="btn btn-secondary" style="margin-bottom: 8px;">
+                        ₿ Download BTCUSDT (Binance, 1h)
+                    </button>
+                    <input id="alpha-api-key" type="password" autocomplete="off" placeholder="Alpha Vantage API key for Gold" style="margin-bottom: 8px;">
+                    <button id="fetch-gold-btn" class="btn btn-secondary">
+                        🟡 Download Gold GLD (Alpha Vantage, 1D)
+                    </button>
+                    <small class="form-text">BTC uses Binance public API. Gold uses Alpha Vantage. The key is sent only for this download and is not saved by Kronos.</small>
+                </div>
+
+                <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+
                 <!-- Data File Selection -->
                 <div class="form-group">
                     <label for="data-file-select">Select Data File:</label>
@@ -693,6 +709,37 @@
                 option.textContent = `${model.name} (${model.params}) - ${model.description}`;
                 modelSelect.appendChild(option);
             });
+            if (availableModels['kronos-mini']) {
+                modelSelect.value = 'kronos-mini';
+            }
+        }
+
+        async function fetchMarketData(market) {
+            const button = document.getElementById(market === 'btcusdt' ? 'fetch-btc-btn' : 'fetch-gold-btn');
+            try {
+                showLoading(true);
+                button.disabled = true;
+                showStatus('info', market === 'btcusdt' ? 'Downloading BTCUSDT from Binance...' : 'Downloading GLD gold data from Alpha Vantage...');
+                const requestData = { market };
+                if (market === 'gold') {
+                    requestData.api_key = document.getElementById('alpha-api-key').value.trim();
+                    if (!requestData.api_key) {
+                        throw new Error('Please enter an Alpha Vantage API key for Gold.');
+                    }
+                }
+                const response = await axios.post('/api/fetch-market-data', requestData);
+                await loadDataFiles();
+                const select = document.getElementById('data-file-select');
+                select.value = response.data.file_path;
+                await loadData();
+                showStatus('success', response.data.message);
+            } catch (error) {
+                console.error('Market data download failed:', error);
+                showStatus('error', `Market data download failed: ${error.response?.data?.error || error.message}`);
+            } finally {
+                showLoading(false);
+                button.disabled = false;
+            }
         }
 
         // Load model
@@ -1193,6 +1240,9 @@
             
             // Load data button
             document.getElementById('load-data-btn').addEventListener('click', loadData);
+
+            document.getElementById('fetch-btc-btn').addEventListener('click', () => fetchMarketData('btcusdt'));
+            document.getElementById('fetch-gold-btn').addEventListener('click', () => fetchMarketData('gold'));
             
             // Prediction button
             document.getElementById('predict-btn').addEventListener('click', startPrediction);

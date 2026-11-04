@@ -1,4 +1,10 @@
 import os
+# Hugging Face defaults to a short download timeout, which is not enough for
+# Kronos model weights on slower connections. These must be set before the
+# model/huggingface modules are imported.
+os.environ.setdefault('HF_HUB_DOWNLOAD_TIMEOUT', '300')
+os.environ.setdefault('HF_HUB_ETAG_TIMEOUT', '60')
+
 import pandas as pd
 import numpy as np
 import json
@@ -9,6 +15,9 @@ from flask_cors import CORS
 import sys
 import warnings
 import datetime
+import threading
+import traceback
+from types import SimpleNamespace
 warnings.filterwarnings('ignore')
 
 # Add project root directory to path
@@ -16,6 +25,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from model import Kronos, KronosTokenizer, KronosPredictor
+    from scripts.download_market_data import download_alpha_stock, download_binance
     MODEL_AVAILABLE = True
 except ImportError:
     MODEL_AVAILABLE = False
@@ -28,6 +38,8 @@ CORS(app)
 tokenizer = None
 model = None
 predictor = None
+model_load_lock = threading.Lock()
+market_data_lock = threading.Lock()
 
 # Available model configurations
 AVAILABLE_MODELS = {
@@ -338,6 +350,58 @@ def get_data_files():
     data_files = load_data_files()
     return jsonify(data_files)
 
+@app.route('/api/fetch-market-data', methods=['POST'])
+def fetch_market_data():
+    """Download a predefined real-market dataset and make it available to the UI."""
+    if not market_data_lock.acquire(blocking=False):
+        return jsonify({'error': 'Another market-data download is already running.'}), 409
+
+    try:
+        payload = request.get_json(silent=True) or {}
+        market = payload.get('market')
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+        os.makedirs(data_dir, exist_ok=True)
+
+        if market == 'btcusdt':
+            output = os.path.join(data_dir, 'binance_btcusdt_1h.csv')
+            args = SimpleNamespace(
+                symbol='BTCUSDT', interval='1h', rows=2000,
+                start=None, end=None, output=output
+            )
+            download_binance(args)
+            display_name = 'BTCUSDT - Binance - 1 hour'
+        elif market == 'gold':
+            api_key = payload.get('api_key') or os.environ.get('ALPHAVANTAGE_API_KEY')
+            if not api_key:
+                return jsonify({
+                    'error': 'Missing Alpha Vantage API key. Paste the key in the Gold API Key field.'
+                }), 400
+            output = os.path.join(data_dir, 'alpha_gld_daily.csv')
+            args = SimpleNamespace(
+                symbol='GLD', outputsize='full', api_key=api_key, output=output
+            )
+            download_alpha_stock(args)
+            display_name = 'Gold ETF GLD - Alpha Vantage - daily'
+        else:
+            return jsonify({'error': f'Unsupported market: {market}'}), 400
+
+        frame, error = load_data_file(output)
+        if error:
+            raise RuntimeError(error)
+        return jsonify({
+            'success': True,
+            'market': market,
+            'name': display_name,
+            'file_path': output,
+            'rows': len(frame),
+            'message': f'Downloaded {display_name}: {len(frame)} rows'
+        })
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({'error': f'Market data download failed: {exc}'}), 500
+    finally:
+        market_data_lock.release()
+
 @app.route('/api/load-data', methods=['POST'])
 def load_data():
     """Load data file"""
@@ -628,6 +692,9 @@ def load_model():
     """Load Kronos model"""
     global tokenizer, model, predictor
     
+    if not model_load_lock.acquire(blocking=False):
+        return jsonify({'error': 'Another model download is already running. Please wait for it to finish.'}), 409
+
     try:
         if not MODEL_AVAILABLE:
             return jsonify({'error': 'Kronos model library not available'}), 400
@@ -660,7 +727,13 @@ def load_model():
         })
         
     except Exception as e:
-        return jsonify({'error': f'Model loading failed: {str(e)}'}), 500
+        traceback.print_exc()
+        error_text = str(e)
+        if 'timed out' in error_text.lower() or 'timeout' in error_text.lower():
+            error_text += ' Try Kronos-mini first and check the connection to Hugging Face.'
+        return jsonify({'error': f'Model loading failed: {error_text}'}), 500
+    finally:
+        model_load_lock.release()
 
 @app.route('/api/available-models')
 def get_available_models():
@@ -705,4 +778,5 @@ if __name__ == '__main__':
     else:
         print("Tip: Will use simulated data for demonstration")
     
-    app.run(debug=True, host='0.0.0.0', port=7070)
+    server_port = int(os.environ.get('KRONOS_PORT', '7071'))
+    app.run(debug=False, host='127.0.0.1', port=server_port)
