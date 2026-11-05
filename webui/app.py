@@ -555,6 +555,10 @@ def predict():
         file_path = data.get('file_path')
         lookback = int(data.get('lookback', 400))
         pred_len = int(data.get('pred_len', 120))
+        if lookback < 50 or lookback > 2048:
+            return jsonify({'error': 'Số nến lịch sử phải từ 50 đến 2048.'}), 400
+        if pred_len < 1 or pred_len > 500:
+            return jsonify({'error': 'Số nến dự báo phải từ 1 đến 500.'}), 400
         
         # Get prediction quality parameters
         temperature = float(data.get('temperature', 1.0))

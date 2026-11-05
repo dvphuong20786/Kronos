@@ -558,7 +558,7 @@
                     <div class="time-window-info">
                         <span id="window-start">Bắt đầu: --</span>
                         <span id="window-end">Kết thúc: --</span>
-                        <span id="window-size">Cửa sổ: 400+120=520 nến</span>
+                        <span id="window-size">Cửa sổ: 400 + 120 = 520 nến</span>
                     </div>
                     
                     <div class="time-window-slider">
@@ -573,7 +573,7 @@
                         </div>
                     </div>
                     
-                    <small class="form-text">Kéo thanh để chọn cửa sổ 520 nến: 400 nến đầu vào và 120 nến dự báo/đối chiếu.</small>
+                    <small class="form-text">Kéo thanh để chọn giai đoạn kiểm thử. Mặc định dùng giai đoạn mới nhất.</small>
                 </div>
 
                 <!-- Prediction Parameters -->
@@ -585,8 +585,8 @@
 
                 <div class="form-group">
                     <label for="pred-len">Số nến dự báo:</label>
-                    <input type="number" id="pred-len" value="120" readonly>
-                    <small class="form-text">Cố định 120 nến</small>
+                    <input type="number" id="pred-len" value="120" min="1" max="500" step="1">
+                    <small class="form-text">Có thể chọn từ 1 đến 500 nến. Số càng lớn thì dự báo càng lâu và độ bất định càng cao.</small>
                 </div>
 
                 <!-- Prediction Quality Parameters -->
@@ -954,6 +954,12 @@
             setupSliderEventListeners();
         }
 
+        function getWindowConfig() {
+            const lookback = parseInt(document.getElementById('lookback').value) || 400;
+            const predLen = Math.max(1, Math.min(500, parseInt(document.getElementById('pred-len').value) || 120));
+            return { lookback, predLen, windowSize: lookback + predLen };
+        }
+
         // Set up slider event listeners
         function setupSliderEventListeners() {
             const startHandle = document.getElementById('start-handle');
@@ -1023,8 +1029,7 @@
             const startHandle = document.getElementById('start-handle');
             const selection = document.getElementById('slider-selection');
             
-            // Fixed window size of 520 data points
-            const windowSize = 520;
+            const { windowSize } = getWindowConfig();
             const totalRows = sliderData ? sliderData.totalRows : 1000;
             const windowPercentage = windowSize / totalRows;
             
@@ -1047,8 +1052,7 @@
             const endHandle = document.getElementById('end-handle');
             const selection = document.getElementById('slider-selection');
             
-            // Fixed window size of 520 data points
-            const windowSize = 520;
+            const { windowSize } = getWindowConfig();
             const totalRows = sliderData ? sliderData.totalRows : 1000;
             const windowPercentage = windowSize / totalRows;
             
@@ -1085,25 +1089,18 @@
             const endDate = new Date(endTime);
             
             // Update display information
-            document.getElementById('window-start').textContent = `Start: ${startDate.toLocaleDateString()}`;
-            document.getElementById('window-end').textContent = `End: ${endDate.toLocaleDateString()}`;
+            document.getElementById('window-start').textContent = `Bắt đầu: ${startDate.toLocaleDateString('vi-VN')}`;
+            document.getElementById('window-end').textContent = `Kết thúc: ${endDate.toLocaleDateString('vi-VN')}`;
             
-            // Display fixed window size
-            document.getElementById('window-size').textContent = `Window Size: 400 + 120 = 520 data points (fixed)`;
-            
-            // Input field values remain fixed
-            document.getElementById('lookback').value = 400;
-            document.getElementById('pred-len').value = 120;
+            const { lookback, predLen, windowSize } = getWindowConfig();
+            document.getElementById('window-size').textContent = `Cửa sổ: ${lookback} + ${predLen} = ${windowSize} nến`;
         }
 
         // Update slider based on input fields
         function updateSliderFromInputs() {
             if (!sliderData) return;
             
-            // Fixed window size: 400 + 120 = 520 data points
-            const lookback = 400;
-            const predLen = 120;
-            const windowSize = lookback + predLen; // Fixed at 520
+            const { lookback, predLen, windowSize } = getWindowConfig();
             
             // Calculate slider position
             const totalRows = sliderData.totalRows;

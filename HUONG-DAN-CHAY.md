@@ -266,7 +266,7 @@ Trên Web UI, có thể dán key vào ô **Alpha Vantage API key for Gold** rồ
 - `PAXGUSDT` trên Binance là token được bảo chứng bằng vàng và được định giá theo USDT. Nó phù hợp khi muốn chuỗi giá gần với vàng theo USD và có các khung `5m`, `15m`, `1h`, `4h`, `1d`, `1w`.
 - `GLD` là giá của một chứng chỉ ETF vàng, không phải giá một ounce vàng. Vì vậy mức giá GLD thấp hơn nhiều so với giá vàng/ounce là bình thường.
 - Trên Web UI có thể chọn khung thời gian và số lượng từ 520 đến 50.000 nến trước khi tải. Binance trả tối đa 1.000 nến trong mỗi request; công cụ tự phân trang để lấy đủ số lượng đã chọn nếu lịch sử của cặp giao dịch có sẵn.
-- Cửa sổ dự báo mặc định luôn nằm sát bên phải, tức sử dụng 520 nến mới nhất trong file: 400 nến làm đầu vào và 120 nến tiếp theo để dự báo/đối chiếu.
+- Cửa sổ dự báo mặc định luôn nằm sát bên phải. Phần đầu dùng 400 nến làm lịch sử đầu vào; phần sau là số nến dự báo/đối chiếu do người dùng chọn từ 1 đến 500. Tổng độ rộng cửa sổ là `400 + số nến dự báo`.
 
 Forex:
 
