@@ -134,6 +134,19 @@ def load_data_file(file_path):
     except Exception as e:
         return None, f"Failed to load file: {str(e)}"
 
+def align_timestamp_timezone(value, timestamp_series):
+    """Align a request timestamp with the timezone used by a pandas Series."""
+    timestamp = pd.to_datetime(value)
+    series_timezone = timestamp_series.dt.tz
+    if series_timezone is not None:
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.tz_localize(series_timezone)
+        else:
+            timestamp = timestamp.tz_convert(series_timezone)
+    elif timestamp.tzinfo is not None:
+        timestamp = timestamp.tz_localize(None)
+    return timestamp
+
 def save_prediction_results(file_path, prediction_type, prediction_results, actual_data, input_data, prediction_params):
     """Save prediction results to file"""
     try:
@@ -344,6 +357,10 @@ def index():
     """Home page"""
     return render_template('index.html')
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
 @app.route('/api/data-files')
 def get_data_files():
     """Get available data file list"""
@@ -376,12 +393,12 @@ def fetch_market_data():
                 return jsonify({
                     'error': 'Missing Alpha Vantage API key. Paste the key in the Gold API Key field.'
                 }), 400
-            output = os.path.join(data_dir, 'alpha_gld_daily.csv')
+            output = os.path.join(data_dir, 'alpha_gld_weekly.csv')
             args = SimpleNamespace(
-                symbol='GLD', outputsize='full', api_key=api_key, output=output
+                symbol='GLD', interval='weekly', outputsize='full', api_key=api_key, output=output
             )
             download_alpha_stock(args)
-            display_name = 'Gold ETF GLD - Alpha Vantage - daily'
+            display_name = 'Gold ETF GLD - Alpha Vantage - weekly'
         else:
             return jsonify({'error': f'Unsupported market: {market}'}), 400
 
@@ -504,7 +521,7 @@ def predict():
                 
                 if start_date:
                     # Custom time period - fix logic: use data within selected window
-                    start_dt = pd.to_datetime(start_date)
+                    start_dt = align_timestamp_timezone(start_date, df['timestamps'])
                     
                     # Find data after start time
                     mask = df['timestamps'] >= start_dt
@@ -563,7 +580,7 @@ def predict():
             # Fix logic: use data within selected window
             # Prediction uses first 400 data points within selected window
             # Actual data should be last 120 data points within selected window
-            start_dt = pd.to_datetime(start_date)
+            start_dt = align_timestamp_timezone(start_date, df['timestamps'])
             
             # Find data starting from start_date
             mask = df['timestamps'] >= start_dt
@@ -602,7 +619,7 @@ def predict():
         # Create chart - pass historical data start position
         if start_date:
             # Custom time period: find starting position of historical data in original df
-            start_dt = pd.to_datetime(start_date)
+            start_dt = align_timestamp_timezone(start_date, df['timestamps'])
             mask = df['timestamps'] >= start_dt
             historical_start_idx = df[mask].index[0] if len(df[mask]) > 0 else 0
         else:
@@ -615,7 +632,7 @@ def predict():
         if 'timestamps' in df.columns:
             if start_date:
                 # Custom time period: use selected window data to calculate timestamps
-                start_dt = pd.to_datetime(start_date)
+                start_dt = align_timestamp_timezone(start_date, df['timestamps'])
                 mask = df['timestamps'] >= start_dt
                 time_range_df = df[mask]
                 

@@ -137,19 +137,23 @@ def alpha_error(payload: dict[str, Any]) -> None:
 
 
 def download_alpha_stock(args: argparse.Namespace) -> Path:
+    interval = getattr(args, "interval", "daily")
+    function = "TIME_SERIES_WEEKLY" if interval == "weekly" else "TIME_SERIES_DAILY"
     params = {
-        "function": "TIME_SERIES_DAILY",
+        "function": function,
         "symbol": args.symbol.upper(),
-        "outputsize": args.outputsize,
         "apikey": alpha_key(args),
     }
+    if interval == "daily":
+        params["outputsize"] = args.outputsize
     payload = api_get(ALPHA_VANTAGE_URL, params)
     if not isinstance(payload, dict):
         raise RuntimeError(f"Unexpected Alpha Vantage response: {payload}")
     alpha_error(payload)
-    series = payload.get("Time Series (Daily)")
+    series_key = "Weekly Time Series" if interval == "weekly" else "Time Series (Daily)"
+    series = payload.get(series_key)
     if not series:
-        raise RuntimeError(f"Daily series not found in Alpha Vantage response: {payload}")
+        raise RuntimeError(f"{series_key} not found in Alpha Vantage response: {payload}")
 
     rows = []
     for timestamp, values in series.items():
@@ -163,7 +167,7 @@ def download_alpha_stock(args: argparse.Namespace) -> Path:
                 "volume": values.get("5. volume", 0),
             }
         )
-    output = args.output or DEFAULT_DATA_DIR / f"alpha_{args.symbol.lower()}_daily.csv"
+    output = args.output or DEFAULT_DATA_DIR / f"alpha_{args.symbol.lower()}_{interval}.csv"
     return normalize_and_save(pd.DataFrame(rows), Path(output))
 
 
@@ -215,6 +219,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     stock = subparsers.add_parser("alpha-stock", help="Download Alpha Vantage daily stock/ETF OHLCV")
     stock.add_argument("--symbol", required=True, help="Ticker, e.g. IBM, AAPL, GLD, IAU")
+    stock.add_argument("--interval", choices=["daily", "weekly"], default="daily")
     stock.add_argument("--outputsize", choices=["compact", "full"], default="full")
     stock.add_argument("--api-key", help="Prefer ALPHAVANTAGE_API_KEY instead")
     stock.add_argument("--output", type=Path, help="Output CSV path")

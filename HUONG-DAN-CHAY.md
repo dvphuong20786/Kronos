@@ -232,6 +232,12 @@ Vàng: API lịch sử vàng trực tiếp của Alpha Vantage không cung cấp
 .\.venv\Scripts\python.exe .\scripts\download_market_data.py alpha-stock --symbol IAU
 ```
 
+Để lấy lịch sử đủ dài bằng tài khoản miễn phí, ưu tiên nến tuần:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\download_market_data.py alpha-stock --symbol GLD --interval weekly
+```
+
 Trên Web UI, có thể dán key vào ô **Alpha Vantage API key for Gold** rồi bấm **Download Gold GLD**. Key chỉ được dùng trong request tải dữ liệu và không được lưu vào dự án.
 
 Forex:
@@ -240,5 +246,5 @@ Forex:
 .\.venv\Scripts\python.exe .\scripts\download_market_data.py alpha-fx --from-symbol EUR --to-symbol USD
 ```
 
-Alpha Vantage `compact` thường chỉ có 100 dòng. Kronos cần ít nhất 520 dòng, vì vậy cần `outputsize=full`; tùy chính sách tài khoản hiện tại, Alpha Vantage có thể yêu cầu gói trả phí cho dữ liệu đầy đủ. Sau khi tải xong, làm mới Web UI để file mới xuất hiện.
+Alpha Vantage daily `compact` thường chỉ có 100 dòng. Kronos cần ít nhất 520 dòng; dữ liệu tuần GLD thường phù hợp hơn vì endpoint tuần trả lịch sử dài. Sau khi tải xong, làm mới Web UI để file mới xuất hiện.
 
