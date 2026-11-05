@@ -622,10 +622,16 @@ def predict():
                     prediction_type = f"Kronos model prediction (within selected window: first {lookback} data points for prediction, last {pred_len} data points for comparison, time span: {time_span})"
                 else:
                     # Use latest data
-                    x_df = df.iloc[:lookback][required_cols]
-                    x_timestamp = df.iloc[:lookback]['timestamps']
-                    y_timestamp = df.iloc[lookback:lookback+pred_len]['timestamps']
-                    prediction_type = "Kronos model prediction (latest data)"
+                    # Future forecast: last lookback rows as input, timestamps after the file end
+                    x_df = df.iloc[-lookback:][required_cols]
+                    x_timestamp = df.iloc[-lookback:]['timestamps']
+                    time_diff = df['timestamps'].iloc[1] - df['timestamps'].iloc[0]
+                    y_timestamp = pd.Series(pd.date_range(
+                        start=df['timestamps'].iloc[-1] + time_diff,
+                        periods=pred_len,
+                        freq=time_diff
+                    ), name='timestamps')
+                    prediction_type = "Kronos model prediction (future forecast from latest data)"
                 
                 # Ensure timestamps are Series format, not DatetimeIndex, to avoid .dt attribute error in Kronos model
                 if isinstance(x_timestamp, pd.DatetimeIndex):
@@ -676,21 +682,7 @@ def predict():
                         'volume': float(row['volume']) if 'volume' in row else 0,
                         'amount': float(row['amount']) if 'amount' in row else 0
                     })
-        else:  # Latest data
-            # Prediction uses first 400 data points
-            # Actual data should be 120 data points after first 400 data points
-            if len(df) >= lookback + pred_len:
-                actual_df = df.iloc[lookback:lookback+pred_len]
-                for i, (_, row) in enumerate(actual_df.iterrows()):
-                    actual_data.append({
-                        'timestamp': row['timestamps'].isoformat(),
-                        'open': float(row['open']),
-                        'high': float(row['high']),
-                        'low': float(row['low']),
-                        'close': float(row['close']),
-                        'volume': float(row['volume']) if 'volume' in row else 0,
-                        'amount': float(row['amount']) if 'amount' in row else 0
-                    })
+        # Latest data (future forecast): no actual data to compare
         
         # Create chart - pass historical data start position
         if start_date:
@@ -699,8 +691,8 @@ def predict():
             mask = df['timestamps'] >= start_dt
             historical_start_idx = df[mask].index[0] if len(df[mask]) > 0 else 0
         else:
-            # Latest data: start from beginning
-            historical_start_idx = 0
+            # Latest data: history is the last lookback rows
+            historical_start_idx = len(df) - lookback
         
         chart_json = create_prediction_chart(df, pred_df, lookback, pred_len, actual_df, historical_start_idx)
         
