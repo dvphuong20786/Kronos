@@ -517,7 +517,7 @@
                     <button id="fetch-gold-btn" class="btn btn-secondary" style="margin-bottom: 8px;">
                         🟡 Tải vàng PAXGUSDT (Binance)
                     </button>
-                    <input id="alpha-api-key" type="password" autocomplete="off" placeholder="API key Alpha Vantage cho GLD" style="margin-bottom: 8px;">
+                    <input id="alpha-api-key" type="password" autocomplete="off" placeholder="API key GLD (để trống nếu đã lưu trên máy)" style="margin-bottom: 8px;">
                     <button id="fetch-gld-btn" class="btn btn-secondary">
                         📊 Tải ETF vàng GLD (Alpha Vantage, 1 tuần)
                     </button>
@@ -702,6 +702,8 @@
 
             // Load active Binance pairs for searchable combobox
             await loadBinanceSymbols();
+
+            await loadConfigStatus();
             
             // Set up event listeners
             setupEventListeners();
@@ -750,6 +752,17 @@
             }
         }
 
+        async function loadConfigStatus() {
+            try {
+                const response = await axios.get('/api/config-status');
+                if (response.data.alpha_vantage_configured) {
+                    document.getElementById('alpha-api-key').placeholder = 'Alpha Vantage API key đã được lưu trên máy';
+                }
+            } catch (error) {
+                console.error('Không đọc được trạng thái cấu hình:', error);
+            }
+        }
+
         // Populate model selection dropdown
         function populateModelSelect() {
             const modelSelect = document.getElementById('model-select');
@@ -792,7 +805,7 @@
                 if (market === 'gold-alpha') {
                     requestData.api_key = document.getElementById('alpha-api-key').value.trim();
                     if (!requestData.api_key) {
-                        throw new Error('Vui lòng nhập API key Alpha Vantage để tải GLD.');
+                        delete requestData.api_key;
                     }
                 }
                 const response = await axios.post('/api/fetch-market-data', requestData);

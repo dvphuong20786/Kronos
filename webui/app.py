@@ -372,6 +372,13 @@ def get_data_files():
     data_files = load_data_files()
     return jsonify(data_files)
 
+@app.route('/api/config-status')
+def get_config_status():
+    """Report credential availability without exposing secret values."""
+    return jsonify({
+        'alpha_vantage_configured': bool(os.environ.get('ALPHAVANTAGE_API_KEY'))
+    })
+
 @app.route('/api/binance-symbols')
 def get_binance_symbols():
     """Return active Binance Spot USDT pairs for the searchable combobox."""

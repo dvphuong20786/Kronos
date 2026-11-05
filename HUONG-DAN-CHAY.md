@@ -239,6 +239,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\05-clean-cache.ps1
 $env:ALPHAVANTAGE_API_KEY = 'API_KEY_CUA_BAN'
 ```
 
+Để lưu key bền vững cho tài khoản Windows mà không ghi vào source code:
+
+```powershell
+[Environment]::SetEnvironmentVariable('ALPHAVANTAGE_API_KEY', 'API_KEY_CUA_BAN', 'User')
+```
+
+Script `03-run.ps1` tự đọc biến môi trường cấp người dùng này khi khởi động Kronos. API trạng thái chỉ cho biết key đã được cấu hình hay chưa, không trả giá trị key về trình duyệt.
+
 Tải cổ phiếu:
 
 ```powershell

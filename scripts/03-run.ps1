@@ -7,6 +7,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $env:PYTHONDONTWRITEBYTECODE = '1'
+$savedAlphaKey = [Environment]::GetEnvironmentVariable('ALPHAVANTAGE_API_KEY', 'User')
+if ($savedAlphaKey) {
+    $env:ALPHAVANTAGE_API_KEY = $savedAlphaKey
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $venvPython = Join-Path $projectRoot '.venv\Scripts\python.exe'
 
