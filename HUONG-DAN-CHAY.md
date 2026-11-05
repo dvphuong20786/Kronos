@@ -210,6 +210,27 @@ Ví dụ khác:
 .\.venv\Scripts\python.exe .\scripts\download_market_data.py binance --symbol BNBUSDT --interval 1d --rows 1000
 ```
 
+Trên Web UI, nhập cặp giao dịch vào ô **Binance pair**, ví dụ:
+
+- `BTCUSDT`
+- `ETHUSDT`
+- `BNBUSDT`
+- `SOLUSDT`
+- `XRPUSDT`
+- `PAXGUSDT`
+
+Sau đó chọn khung thời gian, số nến và bấm **Download Binance Pair**.
+
+Ô **Binance pair** là combobox có tìm kiếm. Danh sách được tải từ Binance `exchangeInfo`, chỉ gồm các cặp Spot đang giao dịch với đồng định giá `USDT`. Gõ một phần tên như `ETH`, `SOL` hoặc `DOGE`, sau đó chọn cặp trong danh sách gợi ý.
+
+### Dọn Python cache
+
+Các file `.pyc` và thư mục `__pycache__` chỉ là cache tăng tốc import, không phải mã nguồn hay dữ liệu dự báo. Các script đã đặt `PYTHONDONTWRITEBYTECODE=1` để hạn chế tạo lại. Có thể dọn thủ công bằng:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\05-clean-cache.ps1
+```
+
 ### Cổ phiếu và ETF từ Alpha Vantage
 
 Đăng ký API key tại <https://www.alphavantage.co/support/#api-key>, sau đó đặt key cho cửa sổ PowerShell hiện tại:
@@ -239,6 +260,13 @@ Vàng: API lịch sử vàng trực tiếp của Alpha Vantage không cung cấp
 ```
 
 Trên Web UI, có thể dán key vào ô **Alpha Vantage API key for Gold** rồi bấm **Download Gold GLD**. Key chỉ được dùng trong request tải dữ liệu và không được lưu vào dự án.
+
+### Phân biệt giá vàng PAXG và GLD
+
+- `PAXGUSDT` trên Binance là token được bảo chứng bằng vàng và được định giá theo USDT. Nó phù hợp khi muốn chuỗi giá gần với vàng theo USD và có các khung `5m`, `15m`, `1h`, `4h`, `1d`, `1w`.
+- `GLD` là giá của một chứng chỉ ETF vàng, không phải giá một ounce vàng. Vì vậy mức giá GLD thấp hơn nhiều so với giá vàng/ounce là bình thường.
+- Trên Web UI có thể chọn khung thời gian và số lượng từ 520 đến 50.000 nến trước khi tải. Binance trả tối đa 1.000 nến trong mỗi request; công cụ tự phân trang để lấy đủ số lượng đã chọn nếu lịch sử của cặp giao dịch có sẵn.
+- Cửa sổ dự báo mặc định luôn nằm sát bên phải, tức sử dụng 520 nến mới nhất trong file: 400 nến làm đầu vào và 120 nến tiếp theo để dự báo/đối chiếu.
 
 Forex:
 

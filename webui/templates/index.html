@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kronos Financial Prediction Web UI</title>
+    <title>Kronos - Dự báo thị trường tài chính</title>
     <!-- Keep this aligned with plotly==5.17.0 (bundles Plotly.js 2.26.0). -->
     <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -442,94 +442,123 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 Kronos Financial Prediction Web UI</h1>
-            <p>AI-based financial K-line data prediction analysis platform</p>
+            <h1>🚀 Kronos - Dự báo thị trường tài chính</h1>
+            <p>Nền tảng AI phân tích và dự báo dữ liệu nến OHLCV</p>
         </div>
 
         <div class="main-content">
             <div class="control-panel">
-                <h2>🎯 Control Panel</h2>
+                <h2>🎯 Bảng điều khiển</h2>
 
                 <!-- Model Selection -->
                 <div class="form-group">
-                    <label for="model-select">Select Model:</label>
+                    <label for="model-select">Chọn mô hình:</label>
                     <select id="model-select">
-                        <option value="">Please load available models first</option>
+                        <option value="">Đang tải danh sách mô hình...</option>
                     </select>
-                    <small class="form-text">Select the Kronos model to use</small>
+                    <small class="form-text">Khuyến nghị dùng Kronos-mini trên CPU</small>
                 </div>
 
                 <!-- Device Selection -->
                 <div class="form-group">
-                    <label for="device-select">Select Device:</label>
+                    <label for="device-select">Chọn thiết bị:</label>
                     <select id="device-select">
-                        <option value="cpu">CPU</option>
-                        <option value="cuda">CUDA (NVIDIA GPU)</option>
+                        <option value="cpu">CPU (đang hỗ trợ)</option>
+                        <option value="cuda">CUDA (GPU NVIDIA)</option>
                         <option value="mps">MPS (Apple Silicon)</option>
                     </select>
-                    <small class="form-text">Select the device to run the model on</small>
+                    <small class="form-text">Máy hiện tại sử dụng bản PyTorch CPU</small>
                 </div>
 
                 <!-- Model Status -->
                 <div id="model-status" class="status info" style="display: none;">
-                    Model status information
+                    Trạng thái mô hình
                 </div>
 
                 <!-- Load Model Button -->
                 <button id="load-model-btn" class="btn btn-secondary">
-                    🔄 Load Model
+                    🔄 Tải mô hình
                 </button>
 
                 <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
 
                 <!-- Real Market Data Download -->
                 <div class="form-group">
-                    <label>Download Real Market Data:</label>
+                    <label>Tải dữ liệu thị trường thật:</label>
+                    <label for="market-interval" style="font-size: 13px;">Khung thời gian nến:</label>
+                    <select id="market-interval" style="margin-bottom: 8px;">
+                        <option value="1s">1s</option>
+                        <option value="1m">1m</option>
+                        <option value="3m">3m</option>
+                        <option value="5m">5m</option>
+                        <option value="15m">15m</option>
+                        <option value="30m">30m</option>
+                        <option value="1h" selected>1h</option>
+                        <option value="2h">2h</option>
+                        <option value="4h">4h</option>
+                        <option value="6h">6h</option>
+                        <option value="8h">8h</option>
+                        <option value="12h">12h</option>
+                        <option value="1d">1d</option>
+                        <option value="3d">3d</option>
+                        <option value="1w">1w</option>
+                        <option value="1M">1M</option>
+                    </select>
+                    <small class="form-text">s = giây, m = phút, h = giờ, d = ngày, w = tuần, M = tháng</small>
+                    <label for="market-rows" style="font-size: 13px;">Số lượng nến (520-50.000):</label>
+                    <input id="market-rows" type="number" min="520" max="50000" value="2000" style="margin-bottom: 8px;">
+                    <label for="binance-symbol" style="font-size: 13px;">Cặp giao dịch Binance:</label>
+                    <input id="binance-symbol" type="text" list="binance-symbol-list" value="BTCUSDT" placeholder="Gõ BTC, ETH, SOL..." style="margin-bottom: 8px; text-transform: uppercase;">
+                    <datalist id="binance-symbol-list"></datalist>
+                    <small id="binance-symbol-count" class="form-text" style="margin-bottom: 8px;">Đang tải danh sách cặp Binance...</small>
                     <button id="fetch-btc-btn" class="btn btn-secondary" style="margin-bottom: 8px;">
-                        ₿ Download BTCUSDT (Binance, 1h)
+                        📥 Tải cặp Binance đã chọn
                     </button>
-                    <input id="alpha-api-key" type="password" autocomplete="off" placeholder="Alpha Vantage API key for Gold" style="margin-bottom: 8px;">
-                    <button id="fetch-gold-btn" class="btn btn-secondary">
-                        🟡 Download Gold GLD (Alpha Vantage, 1W)
+                    <button id="fetch-gold-btn" class="btn btn-secondary" style="margin-bottom: 8px;">
+                        🟡 Tải vàng PAXGUSDT (Binance)
                     </button>
-                    <small class="form-text">BTC uses Binance public API. Gold uses Alpha Vantage. The key is sent only for this download and is not saved by Kronos.</small>
+                    <input id="alpha-api-key" type="password" autocomplete="off" placeholder="API key Alpha Vantage cho GLD" style="margin-bottom: 8px;">
+                    <button id="fetch-gld-btn" class="btn btn-secondary">
+                        📊 Tải ETF vàng GLD (Alpha Vantage, 1 tuần)
+                    </button>
+                    <small class="form-text">PAXGUSDT gần với giá vàng theo USD và hỗ trợ nhiều khung. GLD là giá một chứng chỉ ETF, không phải giá một ounce vàng.</small>
                 </div>
 
                 <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
 
                 <!-- Data File Selection -->
                 <div class="form-group">
-                    <label for="data-file-select">Select Data File:</label>
+                    <label for="data-file-select">Chọn file dữ liệu:</label>
                     <select id="data-file-select">
-                        <option value="">Please load data file list first</option>
+                        <option value="">Đang tải danh sách file...</option>
                     </select>
-                    <small class="form-text">Select K-line data file from data directory</small>
+                    <small class="form-text">Chọn dữ liệu nến trong thư mục data</small>
                 </div>
 
                 <button id="load-data-btn" class="btn btn-secondary">
-                    📁 Load Data
+                    📁 Nạp dữ liệu
                 </button>
 
                 <!-- Data Information Display -->
                 <div id="data-info" class="data-info" style="display: none;">
-                    <h3>📊 Data Information</h3>
-                    <p><strong>Rows:</strong> <span id="data-rows">-</span></p>
-                    <p><strong>Columns:</strong> <span id="data-cols">-</span></p>
-                    <p><strong>Time Range:</strong> <span id="data-time-range">-</span></p>
-                    <p><strong>Price Range:</strong> <span id="data-price-range">-</span></p>
-                    <p><strong>Time Frequency:</strong> <span id="data-timeframe">-</span></p>
-                    <p><strong>Prediction Columns:</strong> <span id="data-prediction-cols">-</span></p>
+                    <h3>📊 Thông tin dữ liệu</h3>
+                    <p><strong>Số dòng:</strong> <span id="data-rows">-</span></p>
+                    <p><strong>Số cột:</strong> <span id="data-cols">-</span></p>
+                    <p><strong>Khoảng thời gian:</strong> <span id="data-time-range">-</span></p>
+                    <p><strong>Khoảng giá:</strong> <span id="data-price-range">-</span></p>
+                    <p><strong>Khung nến:</strong> <span id="data-timeframe">-</span></p>
+                    <p><strong>Cột dự báo:</strong> <span id="data-prediction-cols">-</span></p>
                 </div>
 
                 <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
 
                 <!-- Time Window Selector -->
                 <div class="time-window-container">
-                    <h3>⏰ Time Window Selection</h3>
+                    <h3>⏰ Chọn cửa sổ thời gian</h3>
                     <div class="time-window-info">
-                        <span id="window-start">Start: --</span>
-                        <span id="window-end">End: --</span>
-                        <span id="window-size">Window Size: 400+120=520 data points</span>
+                        <span id="window-start">Bắt đầu: --</span>
+                        <span id="window-end">Kết thúc: --</span>
+                        <span id="window-size">Cửa sổ: 400+120=520 nến</span>
                     </div>
                     
                     <div class="time-window-slider">
@@ -539,104 +568,104 @@
                             <div class="slider-handle end-handle" id="end-handle"></div>
                         </div>
                         <div class="slider-labels">
-                            <span id="min-label">Earliest</span>
-                            <span id="max-label">Latest</span>
+                            <span id="min-label">Sớm nhất</span>
+                            <span id="max-label">Mới nhất</span>
                         </div>
                     </div>
                     
-                    <small class="form-text">Drag slider to select time window position for 520 data points, green area represents fixed 400+120 data point range</small>
+                    <small class="form-text">Kéo thanh để chọn cửa sổ 520 nến: 400 nến đầu vào và 120 nến dự báo/đối chiếu.</small>
                 </div>
 
                 <!-- Prediction Parameters -->
                 <div class="form-group">
-                    <label for="lookback">Lookback Window Size:</label>
+                    <label for="lookback">Số nến lịch sử:</label>
                     <input type="number" id="lookback" value="400" readonly>
-                    <small class="form-text">Fixed at 400 data points</small>
+                    <small class="form-text">Cố định 400 nến</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="pred-len">Prediction Length:</label>
+                    <label for="pred-len">Số nến dự báo:</label>
                     <input type="number" id="pred-len" value="120" readonly>
-                    <small class="form-text">Fixed at 120 data points</small>
+                    <small class="form-text">Cố định 120 nến</small>
                 </div>
 
                 <!-- Prediction Quality Parameters -->
                 <div class="form-group">
-                    <label for="temperature">Prediction Temperature (T):</label>
+                    <label for="temperature">Độ ngẫu nhiên dự báo (T):</label>
                     <input type="range" id="temperature" value="1.0" min="0.1" max="2.0" step="0.1">
                     <span id="temperature-value">1.0</span>
-                    <small class="form-text">Controls prediction randomness, higher values make predictions more diverse, lower values make predictions more conservative</small>
+                    <small class="form-text">Giá trị cao tạo dự báo đa dạng hơn; giá trị thấp tạo dự báo thận trọng hơn.</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="top-p">Nucleus Sampling Parameter (top_p):</label>
+                    <label for="top-p">Tham số lấy mẫu (top_p):</label>
                     <input type="range" id="top-p" value="0.9" min="0.1" max="1.0" step="0.1">
                     <span id="top-p-value">0.9</span>
-                    <small class="form-text">Controls prediction diversity, higher values consider broader probability distributions</small>
+                    <small class="form-text">Điều khiển độ đa dạng của các kết quả được lấy mẫu.</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="sample-count">Sample Count:</label>
+                    <label for="sample-count">Số mẫu dự báo:</label>
                     <input type="number" id="sample-count" value="1" min="1" max="5" step="1">
-                    <small class="form-text">Generate multiple prediction samples to improve quality (recommended 1-3)</small>
+                    <small class="form-text">Tạo nhiều mẫu rồi tổng hợp kết quả; khuyến nghị 1-3.</small>
                 </div>
 
                 <button id="predict-btn" class="btn btn-success" disabled>
-                    🔮 Start Prediction
+                    🔮 Bắt đầu dự báo
                 </button>
 
                 <!-- Loading Status -->
                 <div id="loading" class="loading">
                     <div class="spinner"></div>
-                    <p>Processing, please wait...</p>
+                    <p>Đang xử lý, vui lòng chờ...</p>
                 </div>
             </div>
 
             <div class="chart-container">
-                <h2>📈 Prediction Results Chart</h2>
+                <h2>📈 Biểu đồ kết quả dự báo</h2>
                 <div id="chart"></div>
                 
                 <!-- Comparison Analysis -->
                 <div id="comparison-section" class="comparison-section" style="display: none;">
-                    <h3>📊 Prediction vs Actual Data Comparison</h3>
+                    <h3>📊 So sánh dự báo và dữ liệu thực tế</h3>
                     <div id="comparison-info" class="comparison-info">
-                        <p><strong>Prediction Type:</strong> <span id="prediction-type">-</span></p>
-                        <p><strong>Comparison Data:</strong> <span id="comparison-data">-</span></p>
+                        <p><strong>Loại dự báo:</strong> <span id="prediction-type">-</span></p>
+                        <p><strong>Dữ liệu đối chiếu:</strong> <span id="comparison-data">-</span></p>
                     </div>
                     
                     <div class="error-stats">
                         <div class="error-stat">
-                            <h4>Mean Absolute Error</h4>
+                            <h4>Sai số tuyệt đối trung bình</h4>
                             <div class="value" id="mae">-</div>
-                            <div class="unit">Price Units</div>
+                            <div class="unit">Đơn vị giá</div>
                         </div>
                         <div class="error-stat">
-                            <h4>Root Mean Square Error</h4>
+                            <h4>Căn sai số bình phương trung bình</h4>
                             <div class="value" id="rmse">-</div>
-                            <div class="unit">Price Units</div>
+                            <div class="unit">Đơn vị giá</div>
                         </div>
                         <div class="error-stat">
-                            <h4>Mean Absolute Percentage Error</h4>
+                            <h4>Sai số phần trăm tuyệt đối trung bình</h4>
                             <div class="value" id="mape">-</div>
                             <div class="unit">%</div>
                         </div>
                     </div>
                     
                     <div class="error-details">
-                        <h4>Detailed Comparison Data:</h4>
+                        <h4>Chi tiết dữ liệu đối chiếu:</h4>
                         <div style="max-height: 300px; overflow-y: auto;">
                             <table class="comparison-table">
                                 <thead>
                                     <tr>
-                                        <th>Time</th>
-                                        <th>Actual Open</th>
-                                        <th>Predicted Open</th>
-                                        <th>Actual High</th>
-                                        <th>Predicted High</th>
-                                        <th>Actual Low</th>
-                                        <th>Predicted Low</th>
-                                        <th>Actual Close</th>
-                                        <th>Predicted Close</th>
+                                        <th>Thời gian</th>
+                                        <th>Mở cửa thực tế</th>
+                                        <th>Mở cửa dự báo</th>
+                                        <th>Cao nhất thực tế</th>
+                                        <th>Cao nhất dự báo</th>
+                                        <th>Thấp nhất thực tế</th>
+                                        <th>Thấp nhất dự báo</th>
+                                        <th>Đóng cửa thực tế</th>
+                                        <th>Đóng cửa dự báo</th>
                                     </tr>
                                 </thead>
                                 <tbody id="comparison-tbody">
@@ -670,6 +699,9 @@
             
             // Load data file list
             await loadDataFiles();
+
+            // Load active Binance pairs for searchable combobox
+            await loadBinanceSymbols();
             
             // Set up event listeners
             setupEventListeners();
@@ -690,18 +722,38 @@
                     console.log('✅ Available models loaded successfully:', availableModels);
                 } else {
                     console.warn('⚠️ Kronos model library not available');
-                    showStatus('warning', 'Kronos model library not available, will use simulated prediction');
+                    showStatus('warning', 'Không tìm thấy thư viện mô hình Kronos');
                 }
             } catch (error) {
                 console.error('❌ Failed to load available models:', error);
-                showStatus('error', 'Failed to load available models');
+                showStatus('error', 'Không tải được danh sách mô hình');
+            }
+        }
+
+        async function loadBinanceSymbols() {
+            const dataList = document.getElementById('binance-symbol-list');
+            const countLabel = document.getElementById('binance-symbol-count');
+            try {
+                const response = await axios.get('/api/binance-symbols');
+                dataList.innerHTML = '';
+                response.data.symbols.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.symbol;
+                    option.label = `${item.base_asset} / ${item.quote_asset}`;
+                    dataList.appendChild(option);
+                });
+                countLabel.textContent = `Có ${response.data.count} cặp USDT đang giao dịch. Gõ để tìm kiếm.`;
+                console.log('✅ Binance symbol list loaded:', response.data.count);
+            } catch (error) {
+                countLabel.textContent = 'Không tải được danh sách. Bạn vẫn có thể tự nhập mã cặp Binance.';
+                console.error('Failed to load Binance symbols:', error);
             }
         }
 
         // Populate model selection dropdown
         function populateModelSelect() {
             const modelSelect = document.getElementById('model-select');
-            modelSelect.innerHTML = '<option value="">Please select model</option>';
+            modelSelect.innerHTML = '<option value="">Vui lòng chọn mô hình</option>';
             
             Object.entries(availableModels).forEach(([key, model]) => {
                 const option = document.createElement('option');
@@ -715,16 +767,32 @@
         }
 
         async function fetchMarketData(market) {
-            const button = document.getElementById(market === 'btcusdt' ? 'fetch-btc-btn' : 'fetch-gold-btn');
+            const buttonMap = {
+                'binance': 'fetch-btc-btn',
+                'btcusdt': 'fetch-btc-btn',
+                'gold-paxg': 'fetch-gold-btn',
+                'gold-alpha': 'fetch-gld-btn'
+            };
+            const button = document.getElementById(buttonMap[market]);
             try {
                 showLoading(true);
                 button.disabled = true;
-                showStatus('info', market === 'btcusdt' ? 'Downloading BTCUSDT from Binance...' : 'Downloading GLD gold data from Alpha Vantage...');
-                const requestData = { market };
-                if (market === 'gold') {
+                showStatus('info', `Downloading ${market} market data...`);
+                const requestData = {
+                    market,
+                    interval: document.getElementById('market-interval').value,
+                    rows: parseInt(document.getElementById('market-rows').value)
+                };
+                if (market === 'binance') {
+                    requestData.symbol = document.getElementById('binance-symbol').value.trim().toUpperCase();
+                    if (!requestData.symbol) {
+                        throw new Error('Vui lòng nhập cặp Binance, ví dụ BTCUSDT hoặc ETHUSDT.');
+                    }
+                }
+                if (market === 'gold-alpha') {
                     requestData.api_key = document.getElementById('alpha-api-key').value.trim();
                     if (!requestData.api_key) {
-                        throw new Error('Please enter an Alpha Vantage API key for Gold.');
+                        throw new Error('Vui lòng nhập API key Alpha Vantage để tải GLD.');
                     }
                 }
                 const response = await axios.post('/api/fetch-market-data', requestData);
@@ -735,7 +803,7 @@
                 showStatus('success', response.data.message);
             } catch (error) {
                 console.error('Market data download failed:', error);
-                showStatus('error', `Market data download failed: ${error.response?.data?.error || error.message}`);
+                showStatus('error', `Tải dữ liệu thị trường thất bại: ${error.response?.data?.error || error.message}`);
             } finally {
                 showLoading(false);
                 button.disabled = false;
@@ -748,7 +816,7 @@
             const device = document.getElementById('device-select').value;
             
             if (!modelKey) {
-                showStatus('error', 'Please select a model to load');
+                showStatus('error', 'Vui lòng chọn mô hình');
                 return;
             }
             
@@ -786,11 +854,11 @@
                 const status = response.data;
                 
                 if (status.loaded) {
-                    showStatus('success', `Model loaded: ${status.current_model.name} on ${status.current_model.device}`);
+                    showStatus('success', `Đã tải mô hình ${status.current_model.name} trên ${status.current_model.device}`);
                 } else if (status.available) {
-                    showStatus('info', 'Model available but not loaded');
+                    showStatus('info', 'Mô hình sẵn sàng nhưng chưa được tải');
                 } else {
-                    showStatus('warning', 'Model library not available');
+                    showStatus('warning', 'Không tìm thấy thư viện mô hình');
                 }
             } catch (error) {
                 console.error('❌ Failed to get model status:', error);
@@ -804,7 +872,7 @@
                 const dataFiles = response.data;
                 
                 const dataFileSelect = document.getElementById('data-file-select');
-                dataFileSelect.innerHTML = '<option value="">Please select data file</option>';
+                dataFileSelect.innerHTML = '<option value="">Vui lòng chọn file dữ liệu</option>';
                 
                 dataFiles.forEach(file => {
                     const option = document.createElement('option');
@@ -816,7 +884,7 @@
                 console.log('✅ Data file list loaded successfully:', dataFiles);
             } catch (error) {
                 console.error('❌ Failed to load data file list:', error);
-                showStatus('error', 'Failed to load data file list');
+                showStatus('error', 'Không tải được danh sách file dữ liệu');
             }
         }
 
@@ -825,7 +893,7 @@
             const filePath = document.getElementById('data-file-select').value;
             
             if (!filePath) {
-                showStatus('error', 'Please select a data file to load');
+                showStatus('error', 'Vui lòng chọn file dữ liệu');
                 return;
             }
             
@@ -1042,12 +1110,12 @@
             
             if (windowSize > totalRows) {
                 // If window size exceeds total data amount, show error
-                showStatus('error', `Insufficient data, need at least ${windowSize} data points, currently only ${totalRows} available`);
+                showStatus('error', `Không đủ dữ liệu: cần ít nhất ${windowSize} nến, hiện có ${totalRows}`);
                 return;
             }
             
-            // Calculate slider position (default select first half of data)
-            const startPercentage = 0.1; // Start from 10%
+            // Default to the newest possible 520-candle window, aligned right.
+            const startPercentage = Math.max(0, 1 - (windowSize / totalRows));
             const endPercentage = startPercentage + (windowSize / totalRows);
             
             // Update handle positions
@@ -1078,12 +1146,12 @@
         // Start prediction
         async function startPrediction() {
             if (!currentDataFile) {
-                showStatus('error', 'Please load data file first');
+                showStatus('error', 'Vui lòng nạp dữ liệu trước');
                 return;
             }
             
             if (!modelLoaded) {
-                showStatus('error', 'Please load model first');
+                showStatus('error', 'Vui lòng tải mô hình trước');
                 return;
             }
             
@@ -1099,7 +1167,7 @@
                 const startPercentage = parseFloat(startHandle.style.left) / 100;
                 
                 if (!sliderData) {
-                    showStatus('error', 'Time window slider not initialized');
+                    showStatus('error', 'Thanh chọn thời gian chưa được khởi tạo');
                     return;
                 }
                 
@@ -1136,7 +1204,7 @@
                 }
             } catch (error) {
                 console.error('❌ Prediction failed:', error);
-                showStatus('error', `Prediction failed: ${error.response?.data?.error || error.message}`);
+                showStatus('error', `Dự báo thất bại: ${error.response?.data?.error || error.message}`);
             } finally {
                 showLoading(false);
                 document.getElementById('predict-btn').disabled = false;
@@ -1241,8 +1309,9 @@
             // Load data button
             document.getElementById('load-data-btn').addEventListener('click', loadData);
 
-            document.getElementById('fetch-btc-btn').addEventListener('click', () => fetchMarketData('btcusdt'));
-            document.getElementById('fetch-gold-btn').addEventListener('click', () => fetchMarketData('gold'));
+            document.getElementById('fetch-btc-btn').addEventListener('click', () => fetchMarketData('binance'));
+            document.getElementById('fetch-gold-btn').addEventListener('click', () => fetchMarketData('gold-paxg'));
+            document.getElementById('fetch-gld-btn').addEventListener('click', () => fetchMarketData('gold-alpha'));
             
             // Prediction button
             document.getElementById('predict-btn').addEventListener('click', startPrediction);

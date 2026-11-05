@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+sys.dont_write_bytecode = True
 import time
 from pathlib import Path
 from typing import Any

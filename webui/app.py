@@ -1,4 +1,7 @@
 import os
+import re
+import sys
+sys.dont_write_bytecode = True
 # Hugging Face defaults to a short download timeout, which is not enough for
 # Kronos model weights on slower connections. These must be set before the
 # model/huggingface modules are imported.
@@ -7,6 +10,7 @@ os.environ.setdefault('HF_HUB_ETAG_TIMEOUT', '60')
 
 import pandas as pd
 import numpy as np
+import requests
 import json
 import plotly.graph_objects as go
 import plotly.utils
@@ -40,6 +44,7 @@ model = None
 predictor = None
 model_load_lock = threading.Lock()
 market_data_lock = threading.Lock()
+binance_symbols_cache = {'symbols': [], 'loaded_at': None}
 
 # Available model configurations
 AVAILABLE_MODELS = {
@@ -367,27 +372,87 @@ def get_data_files():
     data_files = load_data_files()
     return jsonify(data_files)
 
+@app.route('/api/binance-symbols')
+def get_binance_symbols():
+    """Return active Binance Spot USDT pairs for the searchable combobox."""
+    try:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        loaded_at = binance_symbols_cache['loaded_at']
+        cache_is_fresh = loaded_at and (now - loaded_at).total_seconds() < 3600
+        if not cache_is_fresh:
+            response = requests.get(
+                'https://data-api.binance.vision/api/v3/exchangeInfo',
+                timeout=30
+            )
+            response.raise_for_status()
+            exchange_info = response.json()
+            symbols = [
+                {
+                    'symbol': item['symbol'],
+                    'base_asset': item['baseAsset'],
+                    'quote_asset': item['quoteAsset']
+                }
+                for item in exchange_info.get('symbols', [])
+                if item.get('status') == 'TRADING'
+                and item.get('isSpotTradingAllowed', False)
+                and item.get('quoteAsset') == 'USDT'
+            ]
+            symbols.sort(key=lambda item: item['symbol'])
+            binance_symbols_cache['symbols'] = symbols
+            binance_symbols_cache['loaded_at'] = now
+
+        return jsonify({
+            'success': True,
+            'count': len(binance_symbols_cache['symbols']),
+            'symbols': binance_symbols_cache['symbols']
+        })
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({'error': f'Không tải được danh sách Binance: {exc}'}), 502
+
 @app.route('/api/fetch-market-data', methods=['POST'])
 def fetch_market_data():
     """Download a predefined real-market dataset and make it available to the UI."""
     if not market_data_lock.acquire(blocking=False):
-        return jsonify({'error': 'Another market-data download is already running.'}), 409
+        return jsonify({'error': 'Một tác vụ tải dữ liệu khác đang chạy.'}), 409
 
     try:
         payload = request.get_json(silent=True) or {}
         market = payload.get('market')
+        interval = payload.get('interval', '1h')
+        rows = int(payload.get('rows', 2000))
+        allowed_intervals = {
+            '1s', '1m', '3m', '5m', '15m', '30m',
+            '1h', '2h', '4h', '6h', '8h', '12h',
+            '1d', '3d', '1w', '1M'
+        }
+        if interval not in allowed_intervals:
+            return jsonify({'error': f'Khung thời gian không được hỗ trợ: {interval}'}), 400
+        if rows < 520 or rows > 50000:
+            return jsonify({'error': 'Số nến phải từ 520 đến 50000.'}), 400
         data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
         os.makedirs(data_dir, exist_ok=True)
 
-        if market == 'btcusdt':
-            output = os.path.join(data_dir, 'binance_btcusdt_1h.csv')
+        if market in {'binance', 'btcusdt'}:
+            symbol = str(payload.get('symbol', 'BTCUSDT')).strip().upper()
+            if not re.fullmatch(r'[A-Z0-9]{5,20}', symbol):
+                return jsonify({'error': 'Mã Binance không hợp lệ. Ví dụ: BTCUSDT, ETHUSDT, SOLUSDT.'}), 400
+            output = os.path.join(data_dir, f'binance_{symbol.lower()}_{interval}.csv')
             args = SimpleNamespace(
-                symbol='BTCUSDT', interval='1h', rows=2000,
+                symbol=symbol, interval=interval, rows=rows,
                 start=None, end=None, output=output
             )
             download_binance(args)
-            display_name = 'BTCUSDT - Binance - 1 hour'
-        elif market == 'gold':
+            display_name = f'{symbol} - Binance - {interval}'
+        elif market == 'gold-paxg':
+            output = os.path.join(data_dir, f'binance_paxgusdt_{interval}.csv')
+            args = SimpleNamespace(
+                symbol='PAXGUSDT', interval=interval, rows=rows,
+                start=None, end=None, output=output
+            )
+            download_binance(args)
+            display_name = f'Gold proxy PAXGUSDT - Binance - {interval}'
+        elif market == 'gold-alpha':
             api_key = payload.get('api_key') or os.environ.get('ALPHAVANTAGE_API_KEY')
             if not api_key:
                 return jsonify({
@@ -398,7 +463,7 @@ def fetch_market_data():
                 symbol='GLD', interval='weekly', outputsize='full', api_key=api_key, output=output
             )
             download_alpha_stock(args)
-            display_name = 'Gold ETF GLD - Alpha Vantage - weekly'
+            display_name = 'Gold ETF GLD - Alpha Vantage - weekly (ETF share price, not gold/oz)'
         else:
             return jsonify({'error': f'Unsupported market: {market}'}), 400
 
@@ -411,11 +476,11 @@ def fetch_market_data():
             'name': display_name,
             'file_path': output,
             'rows': len(frame),
-            'message': f'Downloaded {display_name}: {len(frame)} rows'
+            'message': f'Đã tải {display_name}: {len(frame)} nến'
         })
     except Exception as exc:
         traceback.print_exc()
-        return jsonify({'error': f'Market data download failed: {exc}'}), 500
+        return jsonify({'error': f'Tải dữ liệu thị trường thất bại: {exc}'}), 500
     finally:
         market_data_lock.release()
 
@@ -476,7 +541,7 @@ def load_data():
         return jsonify({
             'success': True,
             'data_info': data_info,
-            'message': f'Successfully loaded data, total {len(df)} rows'
+            'message': f'Đã nạp dữ liệu thành công: {len(df)} nến'
         })
         
     except Exception as e:
@@ -568,9 +633,9 @@ def predict():
                 )
                 
             except Exception as e:
-                return jsonify({'error': f'Kronos model prediction failed: {str(e)}'}), 500
+                return jsonify({'error': f'Mô hình Kronos dự báo thất bại: {str(e)}'}), 500
         else:
-            return jsonify({'error': 'Kronos model not loaded, please load model first'}), 400
+            return jsonify({'error': 'Chưa tải mô hình Kronos. Vui lòng tải mô hình trước.'}), 400
         
         # Prepare actual data for comparison (if exists)
         actual_data = []
@@ -698,7 +763,7 @@ def predict():
             'prediction_results': prediction_results,
             'actual_data': actual_data,
             'has_comparison': len(actual_data) > 0,
-            'message': f'Prediction completed, generated {pred_len} prediction points' + (f', including {len(actual_data)} actual data points for comparison' if len(actual_data) > 0 else '')
+            'message': f'Dự báo hoàn tất: {pred_len} nến' + (f', đối chiếu với {len(actual_data)} nến thực tế' if len(actual_data) > 0 else '')
         })
         
     except Exception as e:
@@ -734,7 +799,7 @@ def load_model():
         
         return jsonify({
             'success': True,
-            'message': f'Model loaded successfully: {model_config["name"]} ({model_config["params"]}) on {device}',
+            'message': f'Đã tải mô hình {model_config["name"]} ({model_config["params"]}) trên {device}',
             'model_info': {
                 'name': model_config['name'],
                 'params': model_config['params'],
