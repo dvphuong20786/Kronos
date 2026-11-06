@@ -76,3 +76,4 @@ tmp/
 .python-version
 /data
 /webui/prediction_results
+/webui/backtest_results
