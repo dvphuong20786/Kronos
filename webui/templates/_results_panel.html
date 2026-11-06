@@ -1,0 +1,76 @@
+<div class="chart-container">
+  <div class="chart-header">
+    <button
+      id="expand-panel-btn"
+      class="panel-toggle-btn"
+      style="display: none"
+      title="Mở lại bảng điều khiển"
+    >
+      ▶ Mở
+    </button>
+    <h2>📈 Kết quả</h2>
+  </div>
+  <div id="multi-results-container"></div>
+  <div id="multi-details-container"></div>
+  <div id="chart" style="display: none"></div>
+
+  <!-- Comparison Analysis -->
+  <div
+    id="comparison-section"
+    class="comparison-section"
+    style="display: none"
+  >
+    <h3>📊 So sánh dự báo và dữ liệu thực tế</h3>
+    <div id="comparison-info" class="comparison-info">
+      <p>
+        <strong>Loại dự báo:</strong>
+        <span id="prediction-type">-</span>
+      </p>
+      <p>
+        <strong>Dữ liệu đối chiếu:</strong>
+        <span id="comparison-data">-</span>
+      </p>
+    </div>
+
+    <div class="error-stats">
+      <div class="error-stat">
+        <h4>Sai số tuyệt đối trung bình</h4>
+        <div class="value" id="mae">-</div>
+        <div class="unit">Đơn vị giá</div>
+      </div>
+      <div class="error-stat">
+        <h4>Căn sai số bình phương trung bình</h4>
+        <div class="value" id="rmse">-</div>
+        <div class="unit">Đơn vị giá</div>
+      </div>
+      <div class="error-stat">
+        <h4>Sai số phần trăm tuyệt đối trung bình</h4>
+        <div class="value" id="mape">-</div>
+        <div class="unit">%</div>
+      </div>
+    </div>
+
+    <div class="error-details">
+      <h4>Chi tiết dữ liệu đối chiếu:</h4>
+      <div style="max-height: 300px; overflow-y: auto">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Mở cửa thực tế</th>
+              <th>Mở cửa dự báo</th>
+              <th>Cao nhất thực tế</th>
+              <th>Cao nhất dự báo</th>
+              <th>Thấp nhất thực tế</th>
+              <th>Thấp nhất dự báo</th>
+              <th>Đóng cửa thực tế</th>
+              <th>Đóng cửa dự báo</th>
+            </tr>
+          </thead>
+          <tbody id="comparison-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
