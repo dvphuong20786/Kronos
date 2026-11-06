@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import json
 import datetime
 import threading
 from types import SimpleNamespace
@@ -164,6 +165,22 @@ def remove_old_market_files(data_dir, prefix_key, new_filepath):
                             os.remove(os.path.join(results_dir, cfile))
                         except Exception:
                             pass
+                        continue
+
+                    # File kết quả dạng prediction_<thời gian>.json không chứa tên CSV trong tên file,
+                    # tên CSV nằm trong trường 'file_path' bên trong JSON -> phải mở ra để so.
+                    if cfile.startswith('prediction_') and cfile.endswith('.json'):
+                        cache_path = os.path.join(results_dir, cfile)
+                        try:
+                            with open(cache_path, 'r', encoding='utf-8') as f:
+                                saved_file_path = json.load(f).get('file_path', '')
+                        except Exception:
+                            continue
+                        if os.path.basename(saved_file_path) == fname:
+                            try:
+                                os.remove(cache_path)
+                            except Exception as e:
+                                print(f"Could not remove old prediction {cache_path}: {e}")
 
 
 def download_market_dataset(payload):

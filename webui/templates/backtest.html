@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kronos - Backtest</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/backtest.css') }}?v=1" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="main-content">
+        <!-- Cột trái: cấu hình -->
+        <div class="control-panel">
+          <div class="panel-header">
+            <h2>🧪 Backtest</h2>
+            <a href="/" class="bt-link">← Trang dự báo</a>
+          </div>
+
+          <div class="form-group">
+            <label for="bt-model">Mô hình:</label>
+            <select id="bt-model" class="form-control">
+              <option value="kronos-mini">Kronos-mini (4.1M)</option>
+              <option value="kronos-small">Kronos-small (24.7M)</option>
+              <option value="kronos-base">Kronos-base (102.3M)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="bt-device">Thiết bị:</label>
+            <select id="bt-device" class="form-control">
+              <option value="cuda" selected>CUDA (GPU NVIDIA GTX 1650)</option>
+              <option value="cpu">CPU</option>
+            </select>
+          </div>
+          <div
+            id="bt-model-status"
+            class="status info"
+            style="display: none; margin-top: 8px"
+          >
+            Trạng thái mô hình
+          </div>
+
+          <div class="form-group">
+            <label for="bt-file">File dữ liệu:</label>
+            <select id="bt-file" class="form-control"></select>
+          </div>
+
+          <div class="bt-grid">
+            <div class="form-group">
+              <label for="bt-lookback">Nến lịch sử</label>
+              <input id="bt-lookback" type="number" class="form-control" value="400" min="50" max="2048" />
+            </div>
+            <div class="form-group">
+              <label for="bt-predlen">Nến dự báo</label>
+              <input id="bt-predlen" type="number" class="form-control" value="48" min="1" max="500" />
+            </div>
+            <div class="form-group">
+              <label for="bt-step">Bước trượt</label>
+              <input id="bt-step" type="number" class="form-control" value="48" min="1" />
+            </div>
+            <div class="form-group">
+              <label for="bt-max">Số lần tối đa</label>
+              <input id="bt-max" type="number" class="form-control" value="500" min="1" max="5000" />
+            </div>
+          </div>
+          <p class="bt-hint">
+            Bước trượt = số nến dịch sang mỗi lần. Bằng số nến dự báo thì các lần không chồng nhau.
+            Chỉ lấy các lần gần nhất.
+          </p>
+
+          <div class="form-group">
+            <label for="bt-temperature">Độ ngẫu nhiên dự báo (T): <span id="bt-temperature-val">0.8</span></label>
+            <input id="bt-temperature" type="range" value="0.8" min="0.1" max="2.0" step="0.1" />
+            <small class="form-text">Giá trị cao tạo dự báo đa dạng hơn; giá trị thấp thận trọng hơn.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="bt-top-p">Tham số lấy mẫu (top_p): <span id="bt-top-p-val">0.9</span></label>
+            <input id="bt-top-p" type="range" value="0.9" min="0.1" max="1.0" step="0.1" />
+            <small class="form-text">Điều khiển độ đa dạng của các kết quả được lấy mẫu.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="bt-sample-count">Số mẫu dự báo:</label>
+            <input id="bt-sample-count" type="number" class="form-control" value="1" min="1" max="5" step="1" />
+            <small class="form-text">Tạo nhiều mẫu rồi tổng hợp kết quả; khuyến nghị 1-3.</small>
+          </div>
+
+          <button id="bt-run" class="btn btn-primary">▶ Chạy backtest</button>
+          <p id="bt-status" class="bt-hint"></p>
+
+          <button id="bt-save" class="btn btn-secondary" disabled>💾 Lưu kết quả</button>
+
+          <div class="form-group" style="margin-top: 12px">
+            <label for="bt-saved">Kết quả đã lưu:</label>
+            <select id="bt-saved" class="form-control"></select>
+          </div>
+          <button id="bt-view-saved" class="btn btn-secondary">📂 Xem lại</button>
+          <p id="bt-saved-status" class="bt-hint"></p>
+        </div>
+
+        <!-- Cột phải: kết quả -->
+        <div class="control-panel">
+          <div id="bt-summary" class="bt-summary"></div>
+          <div id="bt-chart" style="height: 520px"></div>
+          <div id="bt-table-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/backtest.js') }}?v=1"></script>
+  </body>
+</html>
+

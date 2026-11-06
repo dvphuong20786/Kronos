@@ -189,7 +189,7 @@ function getWindowConfig() {
   const lookback = parseInt(document.getElementById("lookback").value) || 400;
   const predLen = Math.max(
     1,
-    Math.min(500, parseInt(document.getElementById("pred-len").value) || 120),
+    Math.min(500, parseInt(document.getElementById("pred-len").value) || 48),
   );
   return { lookback, predLen, windowSize: lookback + predLen };
 }

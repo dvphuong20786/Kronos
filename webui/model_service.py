@@ -108,7 +108,7 @@ def execute_prediction(data):
     file_path = data.get('file_path')
     model_key = data.get('model_key') or current_model_key
     lookback = int(data.get('lookback', 400))
-    pred_len = int(data.get('pred_len', 120))
+    pred_len = int(data.get('pred_len', 48))
     if lookback < 50 or lookback > 2048:
         return None, ('Số nến lịch sử phải từ 50 đến 2048.', 400)
     if pred_len < 1 or pred_len > 500:

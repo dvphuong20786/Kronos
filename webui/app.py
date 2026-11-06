@@ -31,6 +31,7 @@ from chart_cache_service import (
     load_data_files,
     load_cached_prediction,
 )
+from backtest_service import run_backtest, save_backtest, list_saved_backtests, load_saved_backtest
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -184,6 +185,54 @@ def get_available_models():
 def get_model_status():
     """Get model status"""
     return jsonify(get_model_status_dict())
+
+
+@app.route('/backtest')
+def backtest_page():
+    """Trang backtest walk-forward"""
+    return render_template('backtest.html')
+
+
+@app.route('/api/backtest', methods=['POST'])
+def backtest():
+    """Chạy backtest: dự báo lặp lại từng cửa sổ và so với giá thật"""
+    if not model_load_lock.acquire(blocking=False):
+        return jsonify({'error': 'Đang có tác vụ tải mô hình/backtest khác chạy, vui lòng chờ.'}), 409
+    try:
+        data = request.get_json() or {}
+        result, err = run_backtest(data)
+        if err:
+            return jsonify({'error': err[0]}), err[1]
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': f'Backtest thất bại: {str(e)}'}), 500
+    finally:
+        model_load_lock.release()
+
+
+@app.route('/api/backtest/save', methods=['POST'])
+def backtest_save():
+    """Lưu kết quả backtest vừa chạy"""
+    result, err = save_backtest(request.get_json() or {})
+    if err:
+        return jsonify({'error': err[0]}), err[1]
+    return jsonify(result)
+
+
+@app.route('/api/backtest/saved')
+def backtest_saved_list():
+    """Danh sách kết quả backtest đã lưu"""
+    return jsonify(list_saved_backtests())
+
+
+@app.route('/api/backtest/saved/<save_id>')
+def backtest_saved_get(save_id):
+    """Xem lại 1 kết quả backtest đã lưu"""
+    record, err = load_saved_backtest(save_id)
+    if err:
+        return jsonify({'error': err[0]}), err[1]
+    return jsonify(record)
 
 
 if __name__ == '__main__':

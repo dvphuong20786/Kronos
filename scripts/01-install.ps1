@@ -9,11 +9,17 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 
 function Find-CompatiblePython {
-    foreach ($version in @('3.11', '3.12', '3.10', '3.13', '3.14')) {
-        & py "-$version" -c "import sys; raise SystemExit(0 if sys.version_info[:2] == tuple(map(int, '$version'.split('.'))) else 1)" 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            return @('py', "-$version")
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        foreach ($version in @('3.11', '3.12', '3.10', '3.13', '3.14')) {
+            & py "-$version" -c "import sys; raise SystemExit(0 if sys.version_info[:2] == tuple(map(int, '$version'.split('.'))) else 1)" *> $null
+            if ($LASTEXITCODE -eq 0) {
+                return @('py', "-$version")
+            }
         }
+    } finally {
+        $ErrorActionPreference = $previousErrorAction
     }
 
     throw @"

@@ -1,13 +1,16 @@
 <div class="control-panel">
   <div class="panel-header">
     <h2>🎯 Bảng điều khiển</h2>
-    <button
-      id="collapse-panel-btn"
-      class="panel-toggle-btn"
-      title="Thu gọn bảng điều khiển"
-    >
-      ◀
-    </button>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <a href="/backtest" style="font-size: 0.9rem; color: #667eea; text-decoration: none;">🧪 Backtest →</a>
+      <button
+        id="collapse-panel-btn"
+        class="panel-toggle-btn"
+        title="Thu gọn bảng điều khiển"
+      >
+        ◀
+      </button>
+    </div>
   </div>
 
   <!-- Model Selection -->
@@ -23,11 +26,11 @@
   <div class="form-group">
     <label for="device-select">Chọn thiết bị:</label>
     <select id="device-select">
-      <option value="cpu">CPU (đang hỗ trợ)</option>
-      <option value="cuda">CUDA (GPU NVIDIA)</option>
+      <option value="cuda" selected>CUDA (GPU NVIDIA GTX 1650)</option>
+      <option value="cpu">CPU</option>
       <option value="mps">MPS (Apple Silicon)</option>
     </select>
-    <small class="form-text">Máy hiện tại sử dụng bản PyTorch CPU</small>
+    <small class="form-text">Đã bật tăng tốc GPU NVIDIA</small>
   </div>
 
   <!-- Load Model Button -->
@@ -277,7 +280,7 @@
     <div class="time-window-info">
       <span id="window-start">Bắt đầu: --</span>
       <span id="window-end">Kết thúc: --</span>
-      <span id="window-size">Cửa sổ: 400 + 120 = 520 nến</span>
+      <span id="window-size">Cửa sổ: 400 + 48 = 448 nến</span>
     </div>
 
     <div class="time-window-slider">
@@ -310,7 +313,7 @@
     <input
       type="number"
       id="pred-len"
-      value="120"
+      value="48"
       min="1"
       max="500"
       step="1"

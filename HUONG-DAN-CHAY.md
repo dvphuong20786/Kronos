@@ -286,3 +286,48 @@ Alpha Vantage daily `compact` thường chỉ có 100 dòng. Kronos cần ít nh
 
 - lấy key api
 https://www.alphavantage.co/support/#api-key
+
+## 9. Backtest (trang `/backtest`)
+
+Mở: <http://localhost:7071/backtest>
+
+Cách hoạt động (walk-forward): lấy 400 nến lịch sử, dự báo 120 nến kế tiếp, so với 120 nến thật, dịch sang phải `Bước trượt` nến rồi lặp lại. Chỉ chạy `Số lần tối đa` lần gần nhất.
+
+Chỉ số:
+
+- **Tỉ lệ đúng hướng**: giá đóng cửa ở nến cuối của phần dự báo cao hơn hay thấp hơn nến cuối của phần lịch sử, và có cùng chiều với thực tế không.
+- **MAPE**: sai số % trung bình của giá close trong 120 nến.
+- **Trong vùng High-Low**: % nến thật có giá close nằm trong khoảng low–high dự báo.
+
+Biểu đồ: đường xám là giá thật; mỗi đoạn xanh là một lần dự báo đúng hướng, đoạn đỏ là sai hướng.
+
+Thời gian: khoảng 11 giây mỗi lần với Kronos-mini trên CPU (đo trên BTC 4h).
+
+File liên quan:
+
+- `webui/backtest_service.py`: logic backtest (hàm `run_backtest`).
+- `webui/app.py`: route `/backtest` (trang) và `/api/backtest` (API).
+- `webui/templates/backtest.html`, `webui/static/js/backtest.js`, `webui/static/css/backtest.css`: giao diện.
+
+## 10. Nhật ký thay đổi
+
+- 05/11: `scripts/01-install.ps1`: sửa lỗi dò Python dừng khi máy không có 3.11 (do `$ErrorActionPreference = 'Stop'`).
+- 06/11: `webui/data_service.py` (`remove_old_market_files`): khi tải dữ liệu mới, xóa thêm kết quả dạng `prediction_<thời gian>.json` có `file_path` trỏ tới file CSV cũ. Trước đây các file này bị sót, nên file mới hiện biểu tượng 📈 nhưng đó là dự báo của dữ liệu cũ. Đã xóa tay 2 file kết quả bị sót.
+- 06/11: thêm trang Backtest (mục 9).
+- 06/11: thêm nút chuyển nhanh "🧪 Backtest →" trên thanh tiêu đề Bảng điều khiển của trang chính.
+- 06/11: trang Backtest thêm **💾 Lưu kết quả** (bật sau khi chạy xong) và **Kết quả đã lưu + 📂 Xem lại**. File lưu ở `webui/backtest_results/bt_<thời gian>.json` (gồm tên file dữ liệu, model, toàn bộ kết quả). Xem lại không cần tải model. Code: `save_backtest`, `list_saved_backtests`, `load_saved_backtest` trong `webui/backtest_service.py`; API `/api/backtest/save`, `/api/backtest/saved`, `/api/backtest/saved/<id>`.
+
+Dự kiến (chưa làm): hiện tiến độ từng lần khi backtest chạy lâu; nút xóa kết quả đã lưu.
+
+- 06/11: bản lưu backtest ghi thêm cặp, khung nến, model, thiết bị, lookback/pred_len/step. Tên file: `bt_<thời gian>_<cặp>_<khung>_<model>_<thiết bị>.json` (ví dụ `bt_20261106_192000_btcusdt_4h_kronos-mini_cpu.json`). Cặp/khung được tách từ tên file dữ liệu.
+- 06/11: trang Backtest nâng `Số lần tối đa` lên mặc định `500`, tối đa `5000`; đồng thời bổ sung đầy đủ 3 thông số dự báo giống trang chính: `Độ ngẫu nhiên dự báo (T)` (0.1–2.0, mặc định 0.8), `Tham số lấy mẫu (top_p)` (0.1–1.0, mặc định 0.9), và `Số mẫu dự báo` (1–5, mặc định 1).
+- 06/11: trang Backtest ẩn nút "Tải mô hình"; tự động nạp mô hình ngay khi mở trang (hoặc khi thay đổi dropdown mô hình / thiết bị), đồng bộ cơ chế tự động với trang dự đoán chính.
+- 06/11: chuyển giá trị mặc định của `Số nến dự báo` và `Bước trượt` thành `48` nến (thay vì 120 nến) trên cả giao diện Dự đoán chính lẫn trang Backtest. Cửa sổ thời gian mặc định thành `400 + 48 = 448 nến`.
+- 06/11: đồng bộ khung thông báo trạng thái mô hình trên trang Backtest giống hệt trang chính (dùng thẻ `<div class="status success/info/error">` với nền màu, viền và câu thông báo chi tiết: `✅ Đã tải mô hình Kronos... trên CUDA`).
+
+### Về GPU NVIDIA (Đã cài đặt thành công 06/11)
+
+- Card: GeForce GTX 1650 Max-Q, 4 GB. Driver 621.14 (CUDA 12.x/13.x).
+- PyTorch trong `.venv` đã được nâng cấp lên `torch 2.6.0+cu124` (CUDA Available: True).
+- Toàn bộ thư viện và cache đều được cài đặt trên ổ `F:`.
+- Đã có thể chọn `CUDA` trên cả giao diện Web chính và trang Backtest.

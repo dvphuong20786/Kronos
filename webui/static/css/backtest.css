@@ -1,0 +1,68 @@
+/* Style riêng cho trang backtest */
+.bt-link {
+  font-size: 0.9rem;
+  color: #667eea;
+  text-decoration: none;
+}
+
+.bt-hint {
+  font-size: 0.8rem;
+  color: #718096;
+  margin: 6px 0 12px;
+}
+
+.bt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.bt-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bt-card {
+  flex: 1;
+  min-width: 140px;
+  background: #f7fafc;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.bt-card .value {
+  font-size: 1.6rem;
+  font-weight: bold;
+}
+
+.bt-card .label {
+  font-size: 0.8rem;
+  color: #718096;
+}
+
+.bt-good { color: #2f855a; }
+.bt-bad { color: #c53030; }
+
+.bt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 12px;
+}
+
+.bt-table th,
+.bt-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 6px;
+  text-align: right;
+}
+
+.bt-table th:first-child,
+.bt-table td:first-child,
+.bt-table td.left {
+  text-align: left;
+}
+
