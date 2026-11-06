@@ -1,1490 +1,462 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kronos - Dự báo thị trường tài chính</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kronos</title>
     <!-- Keep this aligned with plotly==5.17.0 (bundles Plotly.js 2.26.0). -->
     <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: white;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .control-panel {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            height: fit-content;
-        }
-
-        .control-panel h2 {
-            color: #4a5568;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #4a5568;
-        }
-
-        .form-group select,
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group select:focus,
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* Prediction quality parameter styles */
-        .form-group input[type="range"] {
-            width: 70%;
-            margin-right: 10px;
-        }
-
-        .form-group input[type="number"] {
-            width: 100%;
-        }
-
-        .form-group span {
-            display: inline-block;
-            min-width: 40px;
-            font-weight: 600;
-            color: #667eea;
-        }
-
-        .form-text {
-            font-size: 12px;
-            color: #718096;
-            margin-top: 5px;
-        }
-
-        .combobox-item:hover {
-            background-color: #edf2f7;
-            color: #667eea;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-        }
-
-        .btn-warning {
-            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-        }
-
-        .status {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .status.success {
-            background: #c6f6d5;
-            color: #22543d;
-            border: 1px solid #9ae6b4;
-        }
-
-        .status.error {
-            background: #fed7d7;
-            color: #742a2a;
-            border: 1px solid #feb2b2;
-        }
-
-        .status.info {
-            background: #bee3f8;
-            color: #2a4365;
-            border: 1px solid #90cdf4;
-        }
-
-        .status.warning {
-            background: #fef5e7;
-            color: #744210;
-            border: 1px solid #fbd38d;
-        }
-
-        .chart-container {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .chart-container h2 {
-            color: #4a5568;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 10px;
-        }
-
-        #chart {
-            width: 100%;
-            height: 600px;
-        }
-
-        .data-info {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .data-info h3 {
-            color: #4a5568;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-
-        .data-info p {
-            margin-bottom: 5px;
-            color: #4a5568;
-        }
-
-        .data-info strong {
-            color: #2d3748;
-        }
-
-        /* Time window selector styles */
-        .time-window-container {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .time-window-container h3 {
-            color: #4a5568;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
-        }
-
-        .time-window-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .time-window-slider {
-            position: relative;
-            margin-bottom: 10px;
-        }
-
-        .slider-track {
-            position: relative;
-            height: 6px;
-            background: #e2e8f0;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-
-        .slider-handle {
-            position: absolute;
-            top: -7px;
-            width: 20px;
-            height: 20px;
-            background: #667eea;
-            border-radius: 50%;
-            cursor: grab;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            z-index: 10;
-        }
-
-        .slider-handle:hover {
-            background: #5a67d8;
-            transform: scale(1.1);
-        }
-
-        .slider-handle:active {
-            cursor: grabbing;
-        }
-
-        .slider-selection {
-            position: absolute;
-            height: 6px;
-            background: #48bb78;
-            border-radius: 3px;
-            top: 0;
-        }
-
-        .slider-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #999;
-            margin-top: 5px;
-        }
-
-        /* Comparison analysis styles */
-        .comparison-section {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-
-        .comparison-section h3 {
-            color: #4a5568;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
-        }
-
-        .comparison-info {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        .comparison-table th,
-        .comparison-table td {
-            border: 1px solid #e2e8f0;
-            padding: 8px;
-            text-align: center;
-            font-size: 12px;
-        }
-
-        .comparison-table th {
-            background: #f7fafc;
-            font-weight: 600;
-        }
-
-        .error-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .error-stat {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .error-stat h4 {
-            color: #4a5568;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-        }
-
-        .error-stat .value {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #667eea;
-        }
-
-        .error-stat .unit {
-            font-size: 0.8rem;
-            color: #718096;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .loading.show {
-            display: block;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .model-info {
-            background: #e6fffa;
-            border: 1px solid #81e6d9;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .model-info h3 {
-            color: #234e52;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-
-        .model-info p {
-            margin-bottom: 5px;
-            color: #234e52;
-        }
-
-        .model-info strong {
-            color: #0f2027;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .container {
-                padding: 10px;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
-        }
-    </style>
-</head>
-<body>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>🚀 Kronos - Dự báo thị trường tài chính</h1>
-            <p>Nền tảng AI phân tích và dự báo dữ liệu nến OHLCV</p>
-        </div>
+      <div class="header">
+        <h1>🚀 Kronos</h1>
+        <p>AI dự báo dữ liệu OHLCV</p>
+      </div>
 
-        <div class="main-content">
-            <div class="control-panel">
-                <h2>🎯 Bảng điều khiển</h2>
+      <div class="main-content">
+        <div class="control-panel">
+          <h2>🎯 Bảng điều khiển</h2>
 
-                <!-- Model Selection -->
-                <div class="form-group">
-                    <label for="model-select">Chọn mô hình:</label>
-                    <select id="model-select">
-                        <option value="">Đang tải danh sách mô hình...</option>
-                    </select>
-                    <small class="form-text">Khuyến nghị dùng Kronos-mini trên CPU</small>
-                </div>
+          <!-- Model Selection -->
+          <div class="form-group">
+            <label for="model-select">Chọn mô hình:</label>
+            <select id="model-select">
+              <option value="">Đang tải danh sách mô hình...</option>
+            </select>
+            <small class="form-text"
+              >Khuyến nghị dùng Kronos-mini trên CPU</small
+            >
+          </div>
 
-                <!-- Device Selection -->
-                <div class="form-group">
-                    <label for="device-select">Chọn thiết bị:</label>
-                    <select id="device-select">
-                        <option value="cpu">CPU (đang hỗ trợ)</option>
-                        <option value="cuda">CUDA (GPU NVIDIA)</option>
-                        <option value="mps">MPS (Apple Silicon)</option>
-                    </select>
-                    <small class="form-text">Máy hiện tại sử dụng bản PyTorch CPU</small>
-                </div>
+          <!-- Device Selection -->
+          <div class="form-group">
+            <label for="device-select">Chọn thiết bị:</label>
+            <select id="device-select">
+              <option value="cpu">CPU (đang hỗ trợ)</option>
+              <option value="cuda">CUDA (GPU NVIDIA)</option>
+              <option value="mps">MPS (Apple Silicon)</option>
+            </select>
+            <small class="form-text"
+              >Máy hiện tại sử dụng bản PyTorch CPU</small
+            >
+          </div>
 
-                <!-- Model Status -->
-                <div id="model-status" class="status info" style="display: none;">
-                    Trạng thái mô hình
-                </div>
+          <!-- Load Model Button -->
+          <button id="load-model-btn" class="btn btn-secondary">
+            🔄 Tải mô hình
+          </button>
 
-                <!-- Load Model Button -->
-                <button id="load-model-btn" class="btn btn-secondary">
-                    🔄 Tải mô hình
-                </button>
+          <!-- Model Status -->
+          <div
+            id="model-status"
+            class="status info"
+            style="display: none; margin-top: 8px"
+          >
+            Trạng thái mô hình
+          </div>
 
-                <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+          <!-- Model Status -->
+          <div
+            id="model-status"
+            class="status info"
+            style="display: none; margin-top: 8px"
+          >
+            Trạng thái mô hình
+          </div>
 
-                <!-- Real Market Data Download -->
-                <div class="form-group">
-                    <label>Tải dữ liệu thị trường thật:</label>
-                    <label for="market-interval" style="font-size: 13px;">Khung thời gian nến:</label>
-                    <select id="market-interval" style="margin-bottom: 8px;">
-                        <option value="1s">1s</option>
-                        <option value="1m">1m</option>
-                        <option value="3m">3m</option>
-                        <option value="5m">5m</option>
-                        <option value="15m">15m</option>
-                        <option value="30m">30m</option>
-                        <option value="1h" selected>1h</option>
-                        <option value="2h">2h</option>
-                        <option value="4h">4h</option>
-                        <option value="6h">6h</option>
-                        <option value="8h">8h</option>
-                        <option value="12h">12h</option>
-                        <option value="1d">1d</option>
-                        <option value="3d">3d</option>
-                        <option value="1w">1w</option>
-                        <option value="1M">1M</option>
-                    </select>
-                    <small class="form-text">s = giây, m = phút, h = giờ, d = ngày, w = tuần, M = tháng</small>
-                    <label for="market-rows" style="font-size: 13px;">Số lượng nến (520-50.000):</label>
-                    <input id="market-rows" type="number" min="520" max="50000" value="2000" style="margin-bottom: 8px;">
-                    <label for="binance-symbol" style="font-size: 13px;">Cặp giao dịch Binance:</label>
-                    <div style="position: relative; margin-bottom: 8px;">
-                        <input id="binance-symbol" type="text" value="BTCUSDT" placeholder="Gõ BTC, ETH, SOL..." autocomplete="off" style="text-transform: uppercase; padding-right: 32px;">
-                        <span id="binance-symbol-arrow" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #718096; font-size: 11px; user-select: none;">▼</span>
-                        <div id="binance-symbol-dropdown" style="display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 240px; overflow-y: auto; background: white; border: 2px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); z-index: 9999;"></div>
-                    </div>
-                    <small id="binance-symbol-count" class="form-text" style="margin-bottom: 8px;">Đang tải danh sách cặp Binance...</small>
-                    <button id="fetch-btc-btn" class="btn btn-secondary" style="margin-bottom: 8px;">
-                        📥 Tải cặp Binance đã chọn
-                    </button>
-                    <button id="fetch-gold-btn" class="btn btn-secondary" style="margin-bottom: 8px;">
-                        🟡 Tải vàng PAXGUSDT (Binance)
-                    </button>
-                    <input id="alpha-api-key" type="password" autocomplete="off" placeholder="API key GLD (để trống nếu đã lưu trên máy)" style="margin-bottom: 8px;">
-                    <button id="fetch-gld-btn" class="btn btn-secondary">
-                        📊 Tải ETF vàng GLD (Alpha Vantage, 1 tuần)
-                    </button>
-                    <small class="form-text">PAXGUSDT gần với giá vàng theo USD và hỗ trợ nhiều khung. GLD là giá một chứng chỉ ETF, không phải giá một ounce vàng.</small>
-                </div>
+          <hr style="margin: 20px 0; border: 1px solid #e2e8f0" />
 
-                <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+          <!-- Real Market Data Download -->
+          <div class="form-group">
+            <label>Tải dữ liệu thị trường thật:</label>
+            <label for="market-interval" style="font-size: 13px"
+              >Khung thời gian nến:</label
+            >
+            <select id="market-interval" style="margin-bottom: 8px">
+              <option value="1s">1s</option>
+              <option value="1m">1m</option>
+              <option value="3m">3m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+              <option value="30m">30m</option>
+              <option value="1h" selected>1h</option>
+              <option value="2h">2h</option>
+              <option value="4h">4h</option>
+              <option value="6h">6h</option>
+              <option value="8h">8h</option>
+              <option value="12h">12h</option>
+              <option value="1d">1d</option>
+              <option value="3d">3d</option>
+              <option value="1w">1w</option>
+              <option value="1M">1M</option>
+            </select>
+            <small class="form-text"
+              >s = giây, m = phút, h = giờ, d = ngày, w = tuần, M = tháng</small
+            >
+            <label for="market-rows" style="font-size: 13px"
+              >Số lượng nến (520-50.000):</label
+            >
+            <input
+              id="market-rows"
+              type="number"
+              min="520"
+              max="50000"
+              value="2000"
+              style="margin-bottom: 8px"
+            />
+            <label for="binance-symbol" style="font-size: 13px"
+              >Cặp giao dịch Binance:</label
+            >
+            <div style="position: relative; margin-bottom: 8px">
+              <input
+                id="binance-symbol"
+                type="text"
+                value="BTCUSDT"
+                placeholder="Gõ BTC, ETH, SOL..."
+                autocomplete="off"
+                style="text-transform: uppercase; padding-right: 32px"
+              />
+              <span
+                id="binance-symbol-arrow"
+                style="
+                  position: absolute;
+                  right: 12px;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  cursor: pointer;
+                  color: #718096;
+                  font-size: 11px;
+                  user-select: none;
+                "
+                >▼</span
+              >
+              <div
+                id="binance-symbol-dropdown"
+                style="
+                  display: none;
+                  position: absolute;
+                  top: calc(100% + 2px);
+                  left: 0;
+                  right: 0;
+                  max-height: 240px;
+                  overflow-y: auto;
+                  background: white;
+                  border: 2px solid #e2e8f0;
+                  border-radius: 8px;
+                  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+                  z-index: 9999;
+                "
+              ></div>
+            </div>
+            <small
+              id="binance-symbol-count"
+              class="form-text"
+              style="margin-bottom: 8px"
+              >Đang tải danh sách cặp Binance...</small
+            >
+            <button
+              id="fetch-btc-btn"
+              class="btn btn-secondary"
+              style="margin-bottom: 8px"
+            >
+              📥 Tải cặp Binance đã chọn
+            </button>
+            <button
+              id="fetch-gold-btn"
+              class="btn btn-secondary"
+              style="margin-bottom: 8px"
+            >
+              🟡 Tải vàng PAXGUSDT (Binance)
+            </button>
+            <input
+              id="alpha-api-key"
+              type="password"
+              autocomplete="off"
+              placeholder="API key GLD (để trống nếu đã lưu trên máy)"
+              style="margin-bottom: 8px"
+            />
+            <button id="fetch-gld-btn" class="btn btn-secondary">
+              📊 Tải ETF vàng GLD (Alpha Vantage, 1 tuần)
+            </button>
+            <small class="form-text"
+              >PAXGUSDT gần với giá vàng theo USD và hỗ trợ nhiều khung. GLD là
+              giá một chứng chỉ ETF, không phải giá một ounce vàng.</small
+            >
+            <!-- Market Status -->
+            <div
+              id="market-status"
+              class="status info"
+              style="display: none; margin-top: 10px"
+            ></div>
+            <!-- Market Status -->
+            <div
+              id="market-status"
+              class="status info"
+              style="display: none; margin-top: 10px"
+            ></div>
+          </div>
 
-                <!-- Data File Selection -->
-                <div class="form-group">
-                    <label for="data-file-select">Chọn file dữ liệu:</label>
-                    <select id="data-file-select">
-                        <option value="">Đang tải danh sách file...</option>
-                    </select>
-                    <small class="form-text">Chọn dữ liệu nến trong thư mục data</small>
-                </div>
+          <hr style="margin: 20px 0; border: 1px solid #e2e8f0" />
 
-                <button id="load-data-btn" class="btn btn-secondary">
-                    📁 Nạp dữ liệu
-                </button>
+          <!-- Data File Selection -->
+          <div class="form-group">
+            <label for="data-file-select">Chọn file dữ liệu:</label>
+            <select id="data-file-select">
+              <option value="">Đang tải danh sách file...</option>
+            </select>
+            <small class="form-text">Chọn dữ liệu nến trong thư mục data</small>
+          </div>
 
-                <!-- Data Information Display -->
-                <div id="data-info" class="data-info" style="display: none;">
-                    <h3>📊 Thông tin dữ liệu</h3>
-                    <p><strong>Số dòng:</strong> <span id="data-rows">-</span></p>
-                    <p><strong>Số cột:</strong> <span id="data-cols">-</span></p>
-                    <p><strong>Khoảng thời gian:</strong> <span id="data-time-range">-</span></p>
-                    <p><strong>Khoảng giá:</strong> <span id="data-price-range">-</span></p>
-                    <p><strong>Khung nến:</strong> <span id="data-timeframe">-</span></p>
-                    <p><strong>Cột dự báo:</strong> <span id="data-prediction-cols">-</span></p>
-                </div>
+          <button id="load-data-btn" class="btn btn-secondary">
+            📁 Nạp dữ liệu
+          </button>
 
-                <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+          <!-- Data Status -->
+          <div
+            id="data-status"
+            class="status info"
+            style="display: none; margin-top: 8px"
+          ></div>
 
-                <!-- Time Window Selector -->
-                <div class="time-window-container">
-                    <h3>⏰ Chọn cửa sổ thời gian</h3>
-                    <div class="time-window-info">
-                        <span id="window-start">Bắt đầu: --</span>
-                        <span id="window-end">Kết thúc: --</span>
-                        <span id="window-size">Cửa sổ: 400 + 120 = 520 nến</span>
-                    </div>
-                    
-                    <div class="time-window-slider">
-                        <div class="slider-track">
-                            <div class="slider-handle start-handle" id="start-handle"></div>
-                            <div class="slider-selection" id="slider-selection"></div>
-                            <div class="slider-handle end-handle" id="end-handle"></div>
-                        </div>
-                        <div class="slider-labels">
-                            <span id="min-label">Sớm nhất</span>
-                            <span id="max-label">Mới nhất</span>
-                        </div>
-                    </div>
-                    
-                    <small class="form-text">Kéo thanh để chọn giai đoạn kiểm thử. Mặc định dùng giai đoạn mới nhất.</small>
-                </div>
+          <!-- Data Status -->
+          <div
+            id="data-status"
+            class="status info"
+            style="display: none; margin-top: 8px"
+          ></div>
 
-                <!-- Prediction Parameters -->
-                <div class="form-group">
-                    <label for="lookback">Số nến lịch sử:</label>
-                    <input type="number" id="lookback" value="400" readonly>
-                    <small class="form-text">Cố định 400 nến</small>
-                </div>
+          <!-- Data Information Display -->
+          <div id="data-info" class="data-info" style="display: none">
+            <h3>📊 Thông tin dữ liệu</h3>
+            <p><strong>Số dòng:</strong> <span id="data-rows">-</span></p>
+            <p><strong>Số cột:</strong> <span id="data-cols">-</span></p>
+            <p>
+              <strong>Khoảng thời gian:</strong>
+              <span id="data-time-range">-</span>
+            </p>
+            <p>
+              <strong>Khoảng giá:</strong> <span id="data-price-range">-</span>
+            </p>
+            <p>
+              <strong>Khung nến:</strong> <span id="data-timeframe">-</span>
+            </p>
+            <p>
+              <strong>Cột dự báo:</strong>
+              <span id="data-prediction-cols">-</span>
+            </p>
+          </div>
 
-                <div class="form-group">
-                    <label for="pred-len">Số nến dự báo:</label>
-                    <input type="number" id="pred-len" value="120" min="1" max="500" step="1">
-                    <small class="form-text">Có thể chọn từ 1 đến 500 nến. Số càng lớn thì dự báo càng lâu và độ bất định càng cao.</small>
-                </div>
+          <hr style="margin: 20px 0; border: 1px solid #e2e8f0" />
 
-                <!-- Prediction Quality Parameters -->
-                <div class="form-group">
-                    <label for="temperature">Độ ngẫu nhiên dự báo (T):</label>
-                    <input type="range" id="temperature" value="1.0" min="0.1" max="2.0" step="0.1">
-                    <span id="temperature-value">1.0</span>
-                    <small class="form-text">Giá trị cao tạo dự báo đa dạng hơn; giá trị thấp tạo dự báo thận trọng hơn.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="top-p">Tham số lấy mẫu (top_p):</label>
-                    <input type="range" id="top-p" value="0.9" min="0.1" max="1.0" step="0.1">
-                    <span id="top-p-value">0.9</span>
-                    <small class="form-text">Điều khiển độ đa dạng của các kết quả được lấy mẫu.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="sample-count">Số mẫu dự báo:</label>
-                    <input type="number" id="sample-count" value="1" min="1" max="5" step="1">
-                    <small class="form-text">Tạo nhiều mẫu rồi tổng hợp kết quả; khuyến nghị 1-3.</small>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input id="future-mode" type="checkbox" checked style="width: auto;">
-                        Dự báo tương lai (từ nến mới nhất)
-                    </label>
-                    <small class="form-text">Bật: lấy các nến cuối file làm đầu vào, dự báo sau thời điểm hiện tại, không có dữ liệu đối chiếu. Tắt: backtest theo cửa sổ thời gian đã chọn.</small>
-                </div>
-
-                <button id="predict-btn" class="btn btn-success" disabled>
-                    🔮 Bắt đầu dự báo
-                </button>
-                <small id="predict-requirement" class="form-text">Cần tải mô hình và nạp dữ liệu trước khi dự báo.</small>
-
-                <!-- Loading Status -->
-                <div id="loading" class="loading">
-                    <div class="spinner"></div>
-                    <p>Đang xử lý, vui lòng chờ...</p>
-                </div>
+          <!-- Time Window Selector -->
+          <div class="time-window-container">
+            <h3>⏰ Chọn cửa sổ thời gian</h3>
+            <div class="time-window-info">
+              <span id="window-start">Bắt đầu: --</span>
+              <span id="window-end">Kết thúc: --</span>
+              <span id="window-size">Cửa sổ: 400 + 120 = 520 nến</span>
             </div>
 
-            <div class="chart-container">
-                <h2>📈 Biểu đồ kết quả dự báo</h2>
-                <div id="chart"></div>
-                
-                <!-- Comparison Analysis -->
-                <div id="comparison-section" class="comparison-section" style="display: none;">
-                    <h3>📊 So sánh dự báo và dữ liệu thực tế</h3>
-                    <div id="comparison-info" class="comparison-info">
-                        <p><strong>Loại dự báo:</strong> <span id="prediction-type">-</span></p>
-                        <p><strong>Dữ liệu đối chiếu:</strong> <span id="comparison-data">-</span></p>
-                    </div>
-                    
-                    <div class="error-stats">
-                        <div class="error-stat">
-                            <h4>Sai số tuyệt đối trung bình</h4>
-                            <div class="value" id="mae">-</div>
-                            <div class="unit">Đơn vị giá</div>
-                        </div>
-                        <div class="error-stat">
-                            <h4>Căn sai số bình phương trung bình</h4>
-                            <div class="value" id="rmse">-</div>
-                            <div class="unit">Đơn vị giá</div>
-                        </div>
-                        <div class="error-stat">
-                            <h4>Sai số phần trăm tuyệt đối trung bình</h4>
-                            <div class="value" id="mape">-</div>
-                            <div class="unit">%</div>
-                        </div>
-                    </div>
-                    
-                    <div class="error-details">
-                        <h4>Chi tiết dữ liệu đối chiếu:</h4>
-                        <div style="max-height: 300px; overflow-y: auto;">
-                            <table class="comparison-table">
-                                <thead>
-                                    <tr>
-                                        <th>Thời gian</th>
-                                        <th>Mở cửa thực tế</th>
-                                        <th>Mở cửa dự báo</th>
-                                        <th>Cao nhất thực tế</th>
-                                        <th>Cao nhất dự báo</th>
-                                        <th>Thấp nhất thực tế</th>
-                                        <th>Thấp nhất dự báo</th>
-                                        <th>Đóng cửa thực tế</th>
-                                        <th>Đóng cửa dự báo</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="comparison-tbody">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+            <div class="time-window-slider">
+              <div class="slider-track">
+                <div class="slider-handle start-handle" id="start-handle"></div>
+                <div class="slider-selection" id="slider-selection"></div>
+                <div class="slider-handle end-handle" id="end-handle"></div>
+              </div>
+              <div class="slider-labels">
+                <span id="min-label">Sớm nhất</span>
+                <span id="max-label">Mới nhất</span>
+              </div>
             </div>
+
+            <small class="form-text"
+              >Kéo thanh để chọn giai đoạn kiểm thử. Mặc định dùng giai đoạn mới
+              nhất.</small
+            >
+          </div>
+
+          <!-- Prediction Parameters -->
+          <div class="form-group">
+            <label for="lookback">Số nến lịch sử:</label>
+            <input type="number" id="lookback" value="400" readonly />
+            <small class="form-text">Cố định 400 nến</small>
+          </div>
+
+          <div class="form-group">
+            <label for="pred-len">Số nến dự báo:</label>
+            <input
+              type="number"
+              id="pred-len"
+              value="120"
+              min="1"
+              max="500"
+              step="1"
+            />
+            <small class="form-text"
+              >Có thể chọn từ 1 đến 500 nến. Số càng lớn thì dự báo càng lâu và
+              độ bất định càng cao.</small
+            >
+          </div>
+
+          <!-- Prediction Quality Parameters -->
+          <div class="form-group">
+            <label for="temperature">Độ ngẫu nhiên dự báo (T):</label>
+            <input
+              type="range"
+              id="temperature"
+              value="8.0"
+              min="0.1"
+              max="2.0"
+              step="0.1"
+            />
+            <span id="temperature-value">8.0</span>
+            <small class="form-text"
+              >Giá trị cao tạo dự báo đa dạng hơn; giá trị thấp tạo dự báo thận
+              trọng hơn.</small
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="top-p">Tham số lấy mẫu (top_p):</label>
+            <input
+              type="range"
+              id="top-p"
+              value="0.9"
+              min="0.1"
+              max="1.0"
+              step="0.1"
+            />
+            <span id="top-p-value">0.9</span>
+            <small class="form-text"
+              >Điều khiển độ đa dạng của các kết quả được lấy mẫu.</small
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="sample-count">Số mẫu dự báo:</label>
+            <input
+              type="number"
+              id="sample-count"
+              value="1"
+              min="1"
+              max="5"
+              step="1"
+            />
+            <small class="form-text"
+              >Tạo nhiều mẫu rồi tổng hợp kết quả; khuyến nghị 1-3.</small
+            >
+          </div>
+
+          <div class="form-group" style="margin-bottom: 10px">
+            <label
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+              "
+            >
+              <input
+                id="future-mode"
+                type="checkbox"
+                checked
+                style="width: auto"
+              />
+              Dự báo tương lai (từ nến mới nhất)
+            </label>
+            <small class="form-text"
+              >Bật: lấy các nến cuối file làm đầu vào, dự báo sau thời điểm hiện
+              tại, không có dữ liệu đối chiếu. Tắt: backtest theo cửa sổ thời
+              gian đã chọn.</small
+            >
+          </div>
+
+          <button id="predict-btn" class="btn btn-success" disabled>
+            🔮 Bắt đầu dự báo
+          </button>
+          <small id="predict-requirement" class="form-text"
+            >Cần tải mô hình và nạp dữ liệu trước khi dự báo.</small
+          >
+
+          <!-- Loading Status -->
+          <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Đang xử lý, vui lòng chờ...</p>
+          </div>
         </div>
+
+        <div class="chart-container">
+          <h2>📈 Biểu đồ kết quả dự báo</h2>
+          <div id="chart"></div>
+
+          <!-- Comparison Analysis -->
+          <div
+            id="comparison-section"
+            class="comparison-section"
+            style="display: none"
+          >
+            <h3>📊 So sánh dự báo và dữ liệu thực tế</h3>
+            <div id="comparison-info" class="comparison-info">
+              <p>
+                <strong>Loại dự báo:</strong>
+                <span id="prediction-type">-</span>
+              </p>
+              <p>
+                <strong>Dữ liệu đối chiếu:</strong>
+                <span id="comparison-data">-</span>
+              </p>
+            </div>
+
+            <div class="error-stats">
+              <div class="error-stat">
+                <h4>Sai số tuyệt đối trung bình</h4>
+                <div class="value" id="mae">-</div>
+                <div class="unit">Đơn vị giá</div>
+              </div>
+              <div class="error-stat">
+                <h4>Căn sai số bình phương trung bình</h4>
+                <div class="value" id="rmse">-</div>
+                <div class="unit">Đơn vị giá</div>
+              </div>
+              <div class="error-stat">
+                <h4>Sai số phần trăm tuyệt đối trung bình</h4>
+                <div class="value" id="mape">-</div>
+                <div class="unit">%</div>
+              </div>
+            </div>
+
+            <div class="error-details">
+              <h4>Chi tiết dữ liệu đối chiếu:</h4>
+              <div style="max-height: 300px; overflow-y: auto">
+                <table class="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Thời gian</th>
+                      <th>Mở cửa thực tế</th>
+                      <th>Mở cửa dự báo</th>
+                      <th>Cao nhất thực tế</th>
+                      <th>Cao nhất dự báo</th>
+                      <th>Thấp nhất thực tế</th>
+                      <th>Thấp nhất dự báo</th>
+                      <th>Đóng cửa thực tế</th>
+                      <th>Đóng cửa dự báo</th>
+                    </tr>
+                  </thead>
+                  <tbody id="comparison-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <script>
-        // Global variables
-        let currentDataFile = null;
-        let currentDataInfo = null;
-        let availableModels = [];
-        let modelLoaded = false;
-
-        // Initialize after page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
-        });
-
-        // Initialize application
-        async function initializeApp() {
-            console.log('🚀 Initializing Kronos Web UI...');
-            
-            // Load available models
-            await loadAvailableModels();
-
-            // Restore model state from backend after a page refresh
-            await updateModelStatus();
-            
-            // Load data file list
-            await loadDataFiles();
-
-            // Load active Binance pairs for searchable combobox
-            await loadBinanceSymbols();
-
-            await loadConfigStatus();
-            
-            // Set up event listeners
-            setupEventListeners();
-            
-            // Initialize time slider
-            initializeTimeSlider();
-            
-            console.log('✅ Application initialization completed');
-        }
-
-        // Load available models
-        async function loadAvailableModels() {
-            try {
-                const response = await axios.get('/api/available-models');
-                if (response.data.model_available) {
-                    availableModels = response.data.models;
-                    populateModelSelect();
-                    console.log('✅ Available models loaded successfully:', availableModels);
-                } else {
-                    console.warn('⚠️ Kronos model library not available');
-                    showStatus('warning', 'Không tìm thấy thư viện mô hình Kronos');
-                }
-            } catch (error) {
-                console.error('❌ Failed to load available models:', error);
-                showStatus('error', 'Không tải được danh sách mô hình');
-            }
-        }
-
-        let binanceSymbolList = [];
-
-        function renderBinanceDropdown(query = '') {
-            const dropdown = document.getElementById('binance-symbol-dropdown');
-            const q = (query || '').trim().toUpperCase();
-            const filtered = q
-                ? binanceSymbolList.filter(item => item.symbol.includes(q) || (item.base_asset && item.base_asset.toUpperCase().includes(q)))
-                : binanceSymbolList;
-
-            if (filtered.length === 0) {
-                dropdown.innerHTML = '<div style="padding: 10px 12px; font-size: 13px; color: #718096; text-align: center;">Không tìm thấy cặp phù hợp</div>';
-                return;
-            }
-
-            dropdown.innerHTML = filtered.map(item => `
-                <div class="combobox-item" data-symbol="${item.symbol}" style="padding: 8px 12px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f7fafc;">
-                    <span style="font-weight: 600;">${item.symbol}</span>
-                    <span style="color: #718096; font-size: 12px;">${item.base_asset || ''} / ${item.quote_asset || ''}</span>
-                </div>
-            `).join('');
-
-            dropdown.querySelectorAll('.combobox-item').forEach(el => {
-                el.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    const symbol = el.getAttribute('data-symbol');
-                    const input = document.getElementById('binance-symbol');
-                    input.value = symbol;
-                    dropdown.style.display = 'none';
-                });
-            });
-        }
-
-        async function loadBinanceSymbols() {
-            const countLabel = document.getElementById('binance-symbol-count');
-            const input = document.getElementById('binance-symbol');
-            const arrow = document.getElementById('binance-symbol-arrow');
-            const dropdown = document.getElementById('binance-symbol-dropdown');
-
-            try {
-                const response = await axios.get('/api/binance-symbols');
-                binanceSymbolList = response.data.symbols || [];
-                countLabel.textContent = `Có ${response.data.count} cặp USDT đang giao dịch. Gõ để tìm kiếm.`;
-                console.log('✅ Binance symbol list loaded:', response.data.count);
-            } catch (error) {
-                countLabel.textContent = 'Không tải được danh sách. Bạn vẫn có thể tự nhập mã cặp Binance.';
-                console.error('Failed to load Binance symbols:', error);
-            }
-
-            const openDropdown = (filterQuery = '') => {
-                renderBinanceDropdown(filterQuery);
-                dropdown.style.display = 'block';
-            };
-
-            input.addEventListener('focus', () => {
-                openDropdown(input.value === 'BTCUSDT' ? '' : input.value);
-                input.select();
-            });
-
-            input.addEventListener('input', () => {
-                openDropdown(input.value);
-            });
-
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    dropdown.style.display = 'none';
-                } else if (e.key === 'Enter') {
-                    const firstItem = dropdown.querySelector('.combobox-item');
-                    if (firstItem && dropdown.style.display === 'block') {
-                        e.preventDefault();
-                        input.value = firstItem.getAttribute('data-symbol');
-                        dropdown.style.display = 'none';
-                    }
-                }
-            });
-
-            arrow.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (dropdown.style.display === 'block') {
-                    dropdown.style.display = 'none';
-                } else {
-                    input.focus();
-                }
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !arrow.contains(e.target) && !dropdown.contains(e.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
-        }
-
-        async function loadConfigStatus() {
-            try {
-                const response = await axios.get('/api/config-status');
-                if (response.data.alpha_vantage_configured) {
-                    document.getElementById('alpha-api-key').placeholder = 'Alpha Vantage API key đã được lưu trên máy';
-                }
-            } catch (error) {
-                console.error('Không đọc được trạng thái cấu hình:', error);
-            }
-        }
-
-        // Populate model selection dropdown
-        function populateModelSelect() {
-            const modelSelect = document.getElementById('model-select');
-            modelSelect.innerHTML = '<option value="">Vui lòng chọn mô hình</option>';
-            
-            Object.entries(availableModels).forEach(([key, model]) => {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = `${model.name} (${model.params}) - ${model.description}`;
-                modelSelect.appendChild(option);
-            });
-            if (availableModels['kronos-mini']) {
-                modelSelect.value = 'kronos-mini';
-            }
-        }
-
-        async function fetchMarketData(market) {
-            const buttonMap = {
-                'binance': 'fetch-btc-btn',
-                'btcusdt': 'fetch-btc-btn',
-                'gold-paxg': 'fetch-gold-btn',
-                'gold-alpha': 'fetch-gld-btn'
-            };
-            const button = document.getElementById(buttonMap[market]);
-            try {
-                showLoading(true);
-                button.disabled = true;
-                showStatus('info', `Downloading ${market} market data...`);
-                const requestData = {
-                    market,
-                    interval: document.getElementById('market-interval').value,
-                    rows: parseInt(document.getElementById('market-rows').value)
-                };
-                if (market === 'binance') {
-                    requestData.symbol = document.getElementById('binance-symbol').value.trim().toUpperCase();
-                    if (!requestData.symbol) {
-                        throw new Error('Vui lòng nhập cặp Binance, ví dụ BTCUSDT hoặc ETHUSDT.');
-                    }
-                }
-                if (market === 'gold-alpha') {
-                    requestData.api_key = document.getElementById('alpha-api-key').value.trim();
-                    if (!requestData.api_key) {
-                        delete requestData.api_key;
-                    }
-                }
-                const response = await axios.post('/api/fetch-market-data', requestData);
-                await loadDataFiles();
-                const select = document.getElementById('data-file-select');
-                select.value = response.data.file_path;
-                await loadData();
-                showStatus('success', response.data.message);
-            } catch (error) {
-                console.error('Market data download failed:', error);
-                showStatus('error', `Tải dữ liệu thị trường thất bại: ${error.response?.data?.error || error.message}`);
-            } finally {
-                showLoading(false);
-                button.disabled = false;
-            }
-        }
-
-        // Load model
-        async function loadModel() {
-            const modelKey = document.getElementById('model-select').value;
-            const device = document.getElementById('device-select').value;
-            
-            if (!modelKey) {
-                showStatus('error', 'Vui lòng chọn mô hình');
-                return;
-            }
-            
-            try {
-                showLoading(true);
-                document.getElementById('load-model-btn').disabled = true;
-                
-                const response = await axios.post('/api/load-model', {
-                    model_key: modelKey,
-                    device: device
-                });
-                
-                if (response.data.success) {
-                    modelLoaded = true;
-                    showStatus('success', response.data.message);
-                    updateModelStatus();
-                    document.getElementById('predict-btn').disabled = false;
-                    console.log('✅ Model loaded successfully:', response.data.model_info);
-                } else {
-                    showStatus('error', response.data.error);
-                }
-            } catch (error) {
-                console.error('❌ Model loading failed:', error);
-                showStatus('error', `Model loading failed: ${error.response?.data?.error || error.message}`);
-            } finally {
-                showLoading(false);
-                document.getElementById('load-model-btn').disabled = false;
-            }
-        }
-
-        // Update model status
-        async function updateModelStatus() {
-            try {
-                const response = await axios.get('/api/model-status');
-                const status = response.data;
-                
-                if (status.loaded) {
-                    modelLoaded = true;
-                    showStatus('success', `Đã tải mô hình ${status.current_model.name} trên ${status.current_model.device}`);
-                } else if (status.available) {
-                    modelLoaded = false;
-                    showStatus('info', 'Mô hình sẵn sàng nhưng chưa được tải');
-                } else {
-                    modelLoaded = false;
-                    showStatus('warning', 'Không tìm thấy thư viện mô hình');
-                }
-                updatePredictButtonState();
-            } catch (error) {
-                console.error('❌ Failed to get model status:', error);
-                modelLoaded = false;
-                updatePredictButtonState();
-            }
-        }
-
-        function updatePredictButtonState() {
-            const button = document.getElementById('predict-btn');
-            const requirement = document.getElementById('predict-requirement');
-            const ready = modelLoaded && Boolean(currentDataFile);
-            button.disabled = !ready;
-
-            if (ready) {
-                requirement.textContent = 'Sẵn sàng dự báo.';
-                requirement.style.color = '#2f855a';
-            } else if (!modelLoaded && !currentDataFile) {
-                requirement.textContent = 'Cần tải mô hình và nạp dữ liệu trước khi dự báo.';
-                requirement.style.color = '#718096';
-            } else if (!modelLoaded) {
-                requirement.textContent = 'Dữ liệu đã nạp. Hãy tải mô hình để bắt đầu dự báo.';
-                requirement.style.color = '#b7791f';
-            } else {
-                requirement.textContent = 'Mô hình đã sẵn sàng. Hãy chọn và nạp file dữ liệu.';
-                requirement.style.color = '#b7791f';
-            }
-        }
-
-        // Load data file list
-        async function loadDataFiles() {
-            try {
-                const response = await axios.get('/api/data-files');
-                const dataFiles = response.data;
-                
-                const dataFileSelect = document.getElementById('data-file-select');
-                dataFileSelect.innerHTML = '<option value="">Vui lòng chọn file dữ liệu</option>';
-                
-                dataFiles.forEach(file => {
-                    const option = document.createElement('option');
-                    option.value = file.path;
-                    option.textContent = `${file.name} (${file.size})`;
-                    dataFileSelect.appendChild(option);
-                });
-                
-                console.log('✅ Data file list loaded successfully:', dataFiles);
-            } catch (error) {
-                console.error('❌ Failed to load data file list:', error);
-                showStatus('error', 'Không tải được danh sách file dữ liệu');
-            }
-        }
-
-        // Load data file
-        async function loadData() {
-            const filePath = document.getElementById('data-file-select').value;
-            
-            if (!filePath) {
-                showStatus('error', 'Vui lòng chọn file dữ liệu');
-                return;
-            }
-            
-            try {
-                showLoading(true);
-                document.getElementById('load-data-btn').disabled = true;
-                
-                const response = await axios.post('/api/load-data', {
-                    file_path: filePath
-                });
-                
-                if (response.data.success) {
-                    currentDataFile = filePath;
-                    currentDataInfo = response.data.data_info;
-                    showDataInfo(response.data.data_info);
-                    showStatus('success', response.data.message);
-                    
-                    // Update prediction button status
-                    if (modelLoaded) {
-                        updatePredictButtonState();
-                    }
-                    updatePredictButtonState();
-                    
-                    console.log('✅ Data loaded successfully:', response.data.data_info);
-                } else {
-                    showStatus('error', response.data.error);
-                }
-            } catch (error) {
-                console.error('❌ Data loading failed:', error);
-                showStatus('error', `Data loading failed: ${error.response?.data?.error || error.message}`);
-            } finally {
-                showLoading(false);
-                document.getElementById('load-data-btn').disabled = false;
-            }
-        }
-
-        // Display data information
-        function showDataInfo(dataInfo) {
-            document.getElementById('data-info').style.display = 'block';
-            document.getElementById('data-rows').textContent = dataInfo.rows;
-            document.getElementById('data-cols').textContent = dataInfo.columns.length;
-            document.getElementById('data-time-range').textContent = `${dataInfo.start_date} to ${dataInfo.end_date}`;
-            document.getElementById('data-price-range').textContent = `${dataInfo.price_range.min.toFixed(4)} - ${dataInfo.price_range.max.toFixed(4)}`;
-            document.getElementById('data-timeframe').textContent = dataInfo.timeframe;
-            document.getElementById('data-prediction-cols').textContent = dataInfo.prediction_columns.join(', ');
-            
-            // Initialize time window slider
-            initializeTimeWindowSlider(dataInfo);
-        }
-
-                    // Time window slider related variables
-        let sliderData = null;
-        let isDragging = false;
-        let currentHandle = null;
-
-        // Initialize time window slider
-        function initializeTimeSlider() {
-            // Set up slider event listeners
-            setupSliderEventListeners();
-        }
-
-        function getWindowConfig() {
-            const lookback = parseInt(document.getElementById('lookback').value) || 400;
-            const predLen = Math.max(1, Math.min(500, parseInt(document.getElementById('pred-len').value) || 120));
-            return { lookback, predLen, windowSize: lookback + predLen };
-        }
-
-        // Set up slider event listeners
-        function setupSliderEventListeners() {
-            const startHandle = document.getElementById('start-handle');
-            const endHandle = document.getElementById('end-handle');
-            const track = document.querySelector('.slider-track');
-            
-            // Start dragging
-            startHandle.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                currentHandle = 'start';
-                e.preventDefault();
-            });
-            
-            endHandle.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                currentHandle = 'end';
-                e.preventDefault();
-            });
-            
-            // Dragging
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                
-                const rect = track.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const percentage = Math.max(0, Math.min(1, x / rect.width));
-                
-                if (currentHandle === 'start') {
-                    updateStartHandle(percentage);
-                } else if (currentHandle === 'end') {
-                    updateEndHandle(percentage);
-                }
-                
-                updateSliderFromHandles();
-            });
-            
-            // End dragging
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-                currentHandle = null;
-            });
-            
-            // Click track to set position directly
-            track.addEventListener('click', (e) => {
-                const rect = track.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const percentage = Math.max(0, Math.min(1, x / rect.width));
-                
-                // Determine which handle is closer to the click position
-                const startHandle = document.getElementById('start-handle');
-                const endHandle = document.getElementById('end-handle');
-                const startRect = startHandle.getBoundingClientRect();
-                const endRect = endHandle.getBoundingClientRect();
-                
-                if (Math.abs(x - (startRect.left - rect.left)) < Math.abs(x - (endRect.left - rect.left))) {
-                    updateStartHandle(percentage);
-                } else {
-                    updateEndHandle(percentage);
-                }
-                
-                updateSliderFromHandles();
-            });
-        }
-
-        // Update start handle position
-        function updateStartHandle(percentage) {
-            const startHandle = document.getElementById('start-handle');
-            const selection = document.getElementById('slider-selection');
-            
-            const { windowSize } = getWindowConfig();
-            const totalRows = sliderData ? sliderData.totalRows : 1000;
-            const windowPercentage = windowSize / totalRows;
-            
-            // Ensure start handle doesn't cause window to exceed data range
-            if (percentage + windowPercentage > 1) {
-                percentage = 1 - windowPercentage;
-            }
-            
-            startHandle.style.left = (percentage * 100) + '%';
-            selection.style.left = (percentage * 100) + '%';
-            selection.style.width = (windowPercentage * 100) + '%';
-            
-            // Automatically adjust end handle position to maintain fixed window size
-            const endHandle = document.getElementById('end-handle');
-            endHandle.style.left = ((percentage + windowPercentage) * 100) + '%';
-        }
-
-        // Update end handle position
-        function updateEndHandle(percentage) {
-            const endHandle = document.getElementById('end-handle');
-            const selection = document.getElementById('slider-selection');
-            
-            const { windowSize } = getWindowConfig();
-            const totalRows = sliderData ? sliderData.totalRows : 1000;
-            const windowPercentage = windowSize / totalRows;
-            
-            // Ensure end handle doesn't cause window to exceed data range
-            if (percentage - windowPercentage < 0) {
-                percentage = windowPercentage;
-            }
-            
-            endHandle.style.left = (percentage * 100) + '%';
-            selection.style.left = ((percentage - windowPercentage) * 100) + '%';
-            selection.style.width = (windowPercentage * 100) + '%';
-            
-            // Automatically adjust start handle position to maintain fixed window size
-            const startHandle = document.getElementById('start-handle');
-            startHandle.style.left = ((percentage - windowPercentage) * 100) + '%';
-        }
-
-        // Update slider display based on handle positions
-        function updateSliderFromHandles() {
-            const startHandle = document.getElementById('start-handle');
-            const endHandle = document.getElementById('end-handle');
-            
-            const startPercentage = parseFloat(startHandle.style.left) / 100;
-            const endPercentage = parseFloat(endHandle.style.left) / 100;
-            
-            if (!sliderData) return;
-            
-            // Calculate selected time range
-            const totalTime = sliderData.endDate.getTime() - sliderData.startDate.getTime();
-            const startTime = sliderData.startDate.getTime() + (totalTime * startPercentage);
-            const endTime = sliderData.startDate.getTime() + (totalTime * endPercentage);
-            
-            const startDate = new Date(startTime);
-            const endDate = new Date(endTime);
-            
-            // Update display information
-            document.getElementById('window-start').textContent = `Bắt đầu: ${startDate.toLocaleDateString('vi-VN')}`;
-            document.getElementById('window-end').textContent = `Kết thúc: ${endDate.toLocaleDateString('vi-VN')}`;
-            
-            const { lookback, predLen, windowSize } = getWindowConfig();
-            document.getElementById('window-size').textContent = `Cửa sổ: ${lookback} + ${predLen} = ${windowSize} nến`;
-        }
-
-        // Update slider based on input fields
-        function updateSliderFromInputs() {
-            if (!sliderData) return;
-            
-            const { lookback, predLen, windowSize } = getWindowConfig();
-            
-            // Calculate slider position
-            const totalRows = sliderData.totalRows;
-            
-            if (windowSize > totalRows) {
-                // If window size exceeds total data amount, show error
-                showStatus('error', `Không đủ dữ liệu: cần ít nhất ${windowSize} nến, hiện có ${totalRows}`);
-                return;
-            }
-            
-            // Default to the newest possible 520-candle window, aligned right.
-            const startPercentage = Math.max(0, 1 - (windowSize / totalRows));
-            const endPercentage = startPercentage + (windowSize / totalRows);
-            
-            // Update handle positions
-            updateStartHandle(startPercentage);
-            updateEndHandle(endPercentage);
-            
-            // Update display information
-            updateSliderFromHandles();
-        }
-
-        // Initialize time window slider
-        function initializeTimeWindowSlider(dataInfo) {
-            sliderData = {
-                startDate: new Date(dataInfo.start_date),
-                endDate: new Date(dataInfo.end_date),
-                totalRows: dataInfo.rows,
-                timeframe: dataInfo.timeframe
-            };
-            
-            // Set slider labels
-            document.getElementById('min-label').textContent = dataInfo.start_date.split('T')[0];
-            document.getElementById('max-label').textContent = dataInfo.end_date.split('T')[0];
-            
-            // Initialize slider position
-            updateSliderFromInputs();
-        }
-
-        // Start prediction
-        async function startPrediction() {
-            if (!currentDataFile) {
-                showStatus('error', 'Vui lòng nạp dữ liệu trước');
-                return;
-            }
-            
-            if (!modelLoaded) {
-                showStatus('error', 'Vui lòng tải mô hình trước');
-                return;
-            }
-            
-            try {
-                showLoading(true);
-                document.getElementById('predict-btn').disabled = true;
-                
-                const lookback = parseInt(document.getElementById('lookback').value);
-                const predLen = parseInt(document.getElementById('pred-len').value);
-                
-                // Get selected time range from time window slider
-                const startHandle = document.getElementById('start-handle');
-                const startPercentage = parseFloat(startHandle.style.left) / 100;
-                
-                if (!sliderData) {
-                    showStatus('error', 'Thanh chọn thời gian chưa được khởi tạo');
-                    return;
-                }
-                
-                // Calculate selected time range
-                const totalTime = sliderData.endDate.getTime() - sliderData.startDate.getTime();
-                const startTime = sliderData.startDate.getTime() + (totalTime * startPercentage);
-                const startDate = new Date(startTime);
-                
-                // Get prediction quality parameters
-                const temperature = parseFloat(document.getElementById('temperature').value);
-                const topP = parseFloat(document.getElementById('top-p').value);
-                const sampleCount = parseInt(document.getElementById('sample-count').value);
-                
-                let predictionParams = {
-                    file_path: currentDataFile,
-                    lookback: lookback,
-                    pred_len: predLen,
-                    start_date: startDate.toISOString().slice(0, 16), // Format as YYYY-MM-DDTHH:MM
-                    temperature: temperature,
-                    top_p: topP,
-                    sample_count: sampleCount
-                };
-                if (document.getElementById('future-mode').checked) {
-                    delete predictionParams.start_date;
-                }
-                
-                console.log('🚀 Starting prediction, parameters:', predictionParams);
-                
-                const response = await axios.post('/api/predict', predictionParams);
-                
-                if (response.data.success) {
-                    // Display prediction results
-                    displayPredictionResult(response.data);
-                    showStatus('success', response.data.message);
-                } else {
-                    showStatus('error', response.data.error);
-                }
-            } catch (error) {
-                console.error('❌ Prediction failed:', error);
-                showStatus('error', `Dự báo thất bại: ${error.response?.data?.error || error.message}`);
-            } finally {
-                showLoading(false);
-                updatePredictButtonState();
-            }
-        }
-
-        // Display prediction results
-        function displayPredictionResult(result) {
-            // Display chart
-            const chartData = JSON.parse(result.chart);
-            Plotly.newPlot('chart', chartData.data, chartData.layout);
-            
-            // Display comparison analysis (if actual data exists)
-            if (result.has_comparison) {
-                displayComparisonAnalysis(result);
-            } else {
-                document.getElementById('comparison-section').style.display = 'none';
-            }
-        }
-
-        // Display comparison analysis
-        function displayComparisonAnalysis(result) {
-            document.getElementById('comparison-section').style.display = 'block';
-            
-            // Update comparison information
-            document.getElementById('prediction-type').textContent = result.prediction_type;
-            document.getElementById('comparison-data').textContent = `${result.actual_data.length} actual data points`;
-            
-            // Calculate error statistics
-            const errorStats = getPredictionQuality(result.prediction_results, result.actual_data);
-            
-            // Display error statistics
-            document.getElementById('mae').textContent = errorStats.mae.toFixed(4);
-            document.getElementById('rmse').textContent = errorStats.rmse.toFixed(4);
-            document.getElementById('mape').textContent = errorStats.mape.toFixed(2);
-            
-            // Fill comparison table
-            fillComparisonTable(result.prediction_results, result.actual_data);
-        }
-
-        // Calculate prediction quality metrics
-        function getPredictionQuality(predictions, actuals) {
-            if (!predictions || !actuals || predictions.length === 0 || actuals.length === 0) {
-                return { mae: 0, rmse: 0, mape: 0 };
-            }
-            
-            const minLen = Math.min(predictions.length, actuals.length);
-            let mae = 0, rmse = 0, mape = 0;
-            
-            for (let i = 0; i < minLen; i++) {
-                const pred = predictions[i];
-                const act = actuals[i];
-                
-                // Use closing price to calculate errors
-                const error = Math.abs(pred.close - act.close);
-                const percentError = (error / act.close) * 100;
-                
-                mae += error;
-                rmse += error * error;
-                mape += percentError;
-            }
-            
-            mae /= minLen;
-            rmse = Math.sqrt(rmse / minLen);
-            mape /= minLen;
-            
-            return { mae, rmse, mape };
-        }
-
-                    // Fill comparison table
-        function fillComparisonTable(predictions, actuals) {
-            const tbody = document.getElementById('comparison-tbody');
-            tbody.innerHTML = '';
-            
-            const minLen = actuals.length > 0 ? Math.min(predictions.length, actuals.length) : predictions.length;
-            const fmt = (v) => (v === undefined ? '—' : v.toFixed(4));
-            
-            for (let i = minLen - 1; i >= 0; i--) {
-                const pred = predictions[i];
-                const act = actuals[i] || {};
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${new Date(pred.timestamp).toLocaleString()}</td>
-                    <td>${fmt(act.open)}</td>
-                    <td>${pred.open.toFixed(4)}</td>
-                    <td>${fmt(act.high)}</td>
-                    <td>${pred.high.toFixed(4)}</td>
-                    <td>${fmt(act.low)}</td>
-                    <td>${pred.low.toFixed(4)}</td>
-                    <td>${fmt(act.close)}</td>
-                    <td>${pred.close.toFixed(4)}</td>
-                `;
-                tbody.appendChild(row);
-            }
-        }
-
-        // Set up event listeners
-        function setupEventListeners() {
-            // Load model button
-            document.getElementById('load-model-btn').addEventListener('click', loadModel);
-            
-            // Load data button
-            document.getElementById('load-data-btn').addEventListener('click', loadData);
-
-            document.getElementById('fetch-btc-btn').addEventListener('click', () => fetchMarketData('binance'));
-            document.getElementById('fetch-gold-btn').addEventListener('click', () => fetchMarketData('gold-paxg'));
-            document.getElementById('fetch-gld-btn').addEventListener('click', () => fetchMarketData('gold-alpha'));
-            
-            // Prediction button
-            document.getElementById('predict-btn').addEventListener('click', startPrediction);
-            
-            // Prediction quality parameter sliders
-            document.getElementById('temperature').addEventListener('input', function() {
-                document.getElementById('temperature-value').textContent = this.value;
-            });
-            
-            document.getElementById('top-p').addEventListener('input', function() {
-                document.getElementById('top-p-value').textContent = this.value;
-            });
-            
-            // Update slider when lookback window size changes
-            document.getElementById('lookback').addEventListener('input', updateSliderFromInputs);
-            document.getElementById('pred-len').addEventListener('input', updateSliderFromInputs);
-        }
-
-        // Display status information
-        function showStatus(type, message) {
-            const statusDiv = document.getElementById('model-status');
-            statusDiv.className = `status ${type}`;
-            statusDiv.textContent = message;
-            statusDiv.style.display = 'block';
-            
-            // Auto-hide
-            setTimeout(() => {
-                statusDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        // Show/hide loading status
-        function showLoading(show) {
-            const loadingDiv = document.getElementById('loading');
-            if (show) {
-                loadingDiv.classList.add('show');
-            } else {
-                loadingDiv.classList.remove('show');
-            }
-        }
-    </script>
-</body>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
 </html>

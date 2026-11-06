@@ -284,3 +284,5 @@ Forex:
 
 Alpha Vantage daily `compact` thường chỉ có 100 dòng. Kronos cần ít nhất 520 dòng; dữ liệu tuần GLD thường phù hợp hơn vì endpoint tuần trả lịch sử dài. Sau khi tải xong, làm mới Web UI để file mới xuất hiện.
 
+- lấy key api
+https://www.alphavantage.co/support/#api-key
