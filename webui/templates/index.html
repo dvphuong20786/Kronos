@@ -9,19 +9,28 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"
+      href="{{ url_for('static', filename='css/style.css') }}?v=1.2"
     />
   </head>
   <body>
     <div class="container">
-      <div class="header">
+      <!-- <div class="header">
         <h1>🚀 Kronos</h1>
         <p>AI dự báo dữ liệu OHLCV</p>
-      </div>
+      </div> -->
 
       <div class="main-content">
         <div class="control-panel">
-          <h2>🎯 Bảng điều khiển</h2>
+          <div class="panel-header">
+            <h2>🎯 Bảng điều khiển</h2>
+            <button
+              id="collapse-panel-btn"
+              class="panel-toggle-btn"
+              title="Thu gọn bảng điều khiển"
+            >
+              ◀
+            </button>
+          </div>
 
           <!-- Model Selection -->
           <div class="form-group">
@@ -48,18 +57,9 @@
           </div>
 
           <!-- Load Model Button -->
-          <button id="load-model-btn" class="btn btn-secondary">
+          <!-- <button id="load-model-btn" class="btn btn-secondary">
             🔄 Tải mô hình
-          </button>
-
-          <!-- Model Status -->
-          <div
-            id="model-status"
-            class="status info"
-            style="display: none; margin-top: 8px"
-          >
-            Trạng thái mô hình
-          </div>
+          </button> -->
 
           <!-- Model Status -->
           <div
@@ -194,35 +194,28 @@
               class="status info"
               style="display: none; margin-top: 10px"
             ></div>
-            <!-- Market Status -->
-            <div
-              id="market-status"
-              class="status info"
-              style="display: none; margin-top: 10px"
-            ></div>
           </div>
 
           <hr style="margin: 20px 0; border: 1px solid #e2e8f0" />
 
           <!-- Data File Selection -->
           <div class="form-group">
-            <label for="data-file-select">Chọn file dữ liệu:</label>
-            <select id="data-file-select">
-              <option value="">Đang tải danh sách file...</option>
-            </select>
-            <small class="form-text">Chọn dữ liệu nến trong thư mục data</small>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+              <label style="margin-bottom: 0">Chọn file dữ liệu (có thể chọn nhiều):</label>
+              <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; cursor: pointer; margin-bottom: 0; color: #667eea">
+                <input type="checkbox" id="select-all-files" style="width: auto; padding: 0" />
+                Chọn tất cả
+              </label>
+            </div>
+            <div id="data-file-list" class="file-checkbox-list">
+              <div style="padding: 8px; color: #718096; font-size: 13px">Đang tải danh sách file...</div>
+            </div>
+            <small class="form-text">Tick chọn 1 hoặc nhiều file dữ liệu nến để nạp và dự báo</small>
           </div>
 
           <button id="load-data-btn" class="btn btn-secondary">
             📁 Nạp dữ liệu
           </button>
-
-          <!-- Data Status -->
-          <div
-            id="data-status"
-            class="status info"
-            style="display: none; margin-top: 8px"
-          ></div>
 
           <!-- Data Status -->
           <div
@@ -392,8 +385,19 @@
         </div>
 
         <div class="chart-container">
-          <h2>📈 Biểu đồ kết quả dự báo</h2>
-          <div id="chart"></div>
+          <div class="chart-header">
+            <button
+              id="expand-panel-btn"
+              class="panel-toggle-btn"
+              style="display: none"
+              title="Mở lại bảng điều khiển"
+            >
+              ▶ Mở
+            </button>
+            <h2>📈 Kết quả</h2>
+          </div>
+          <div id="multi-results-container"></div>
+          <div id="chart" style="display: none"></div>
 
           <!-- Comparison Analysis -->
           <div
@@ -457,6 +461,6 @@
       </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.4"></script>
   </body>
 </html>

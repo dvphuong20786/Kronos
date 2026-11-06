@@ -1,6 +1,8 @@
 // Global variables
       let currentDataFile = null;
       let currentDataInfo = null;
+      let selectedDataFiles = [];
+      let loadedDataInfos = {};
       let availableModels = [];
       let modelLoaded = false;
 
@@ -13,34 +15,24 @@
       async function initializeApp() {
         console.log("🚀 Initializing Kronos Web UI...");
 
-        // Load available models
-        await loadAvailableModels();
-
-        // Restore model state from backend after a page refresh
-        await updateModelStatus();
-
-        // Load data file list
-        await loadDataFiles();
-
-        // Load active Binance pairs for searchable combobox
-        await loadBinanceSymbols();
-
-        await loadConfigStatus();
-
-        // Set up event listeners
+        // Set up event listeners and slider immediately
         setupEventListeners();
-
-        // Initialize time slider
         initializeTimeSlider();
+
+        // Load data file list and available models in parallel
+        await Promise.all([
+          loadAvailableModels(),
+          updateModelStatus(),
+          loadDataFiles(),
+        ]);
+
+        // Start loading Binance symbols and config in background (non-blocking)
+        loadBinanceSymbols();
+        loadConfigStatus();
 
         // Auto-load model on first visit if not loaded yet
         if (!modelLoaded && document.getElementById("model-select").value) {
           console.log("🔄 Auto loading model on first entry...");
-          showStatus(
-            "info",
-            `⏳ Đang tự động tải mô hình ${document.getElementById("model-select").value}...`,
-            "model-status",
-          );
           await loadModel();
         }
 
@@ -265,9 +257,7 @@
             "/api/fetch-market-data",
             requestData,
           );
-          await loadDataFiles();
-          const select = document.getElementById("data-file-select");
-          select.value = response.data.file_path;
+          await loadDataFiles(true, response.data.file_path);
           showStatus(
             "success",
             `✅ Đã tải xong ${pairLabel} (${interval}, ${rows} nến)!`,
@@ -297,9 +287,10 @@
           return;
         }
 
+        const loadModelBtn = document.getElementById("load-model-btn");
         try {
           showLoading(true);
-          document.getElementById("load-model-btn").disabled = true;
+          if (loadModelBtn) loadModelBtn.disabled = true;
           showStatus(
             "info",
             `⏳ Đang tải mô hình ${modelKey} trên ${device.toUpperCase()}...`,
@@ -335,7 +326,7 @@
           );
         } finally {
           showLoading(false);
-          document.getElementById("load-model-btn").disabled = false;
+          if (loadModelBtn) loadModelBtn.disabled = false;
         }
       }
 
@@ -367,99 +358,169 @@
         }
       }
 
+      function getSelectedFilePaths() {
+        const checkboxes = document.querySelectorAll(
+          ".data-file-checkbox:checked",
+        );
+        return Array.from(checkboxes).map((cb) => cb.value);
+      }
+
+      function syncSelectAllCheckbox() {
+        const selectAll = document.getElementById("select-all-files");
+        if (!selectAll) return;
+        const allBoxes = document.querySelectorAll(".data-file-checkbox");
+        const checkedBoxes = document.querySelectorAll(
+          ".data-file-checkbox:checked",
+        );
+        selectAll.checked =
+          allBoxes.length > 0 && allBoxes.length === checkedBoxes.length;
+        selectAll.indeterminate =
+          checkedBoxes.length > 0 && checkedBoxes.length < allBoxes.length;
+      }
+
       function updatePredictButtonState() {
         const button = document.getElementById("predict-btn");
         const requirement = document.getElementById("predict-requirement");
-        const ready = modelLoaded && Boolean(currentDataFile);
-        button.disabled = !ready;
+        const hasData =
+          selectedDataFiles.length > 0 || Boolean(currentDataFile);
+        button.disabled = !hasData;
 
-        if (ready) {
-          requirement.textContent = "Sẵn sàng dự báo.";
+        if (modelLoaded && hasData) {
+          requirement.textContent = `Sẵn sàng dự báo (${selectedDataFiles.length || 1} file đã chọn).`;
           requirement.style.color = "#2f855a";
-        } else if (!modelLoaded && !currentDataFile) {
+        } else if (!modelLoaded && hasData) {
+          requirement.textContent = `Đã chọn ${selectedDataFiles.length || 1} file. Bấm dự báo sẽ tự động tải mô hình nếu chưa tải.`;
+          requirement.style.color = "#2f855a";
+        } else if (!modelLoaded && !hasData) {
           requirement.textContent =
-            "Cần tải mô hình và nạp dữ liệu trước khi dự báo.";
+            "Cần tải mô hình và tick chọn file dữ liệu trước khi dự báo.";
           requirement.style.color = "#718096";
-        } else if (!modelLoaded) {
-          requirement.textContent =
-            "Dữ liệu đã nạp. Hãy tải mô hình để bắt đầu dự báo.";
-          requirement.style.color = "#b7791f";
         } else {
           requirement.textContent =
-            "Mô hình đã sẵn sàng. Hãy chọn và nạp file dữ liệu.";
+            "Mô hình đã sẵn sàng. Hãy tick chọn file dữ liệu.";
           requirement.style.color = "#b7791f";
         }
       }
 
       // Load data file list
-      async function loadDataFiles() {
+      async function loadDataFiles(
+        preserveSelection = true,
+        newlyFetchedPath = null,
+      ) {
         try {
+          const previousSelected = preserveSelection
+            ? new Set(getSelectedFilePaths())
+            : new Set();
+          if (newlyFetchedPath) {
+            previousSelected.add(newlyFetchedPath);
+          }
+
           const response = await axios.get("/api/data-files");
           const dataFiles = response.data;
 
-          const dataFileSelect = document.getElementById("data-file-select");
-          dataFileSelect.innerHTML =
-            '<option value="">Vui lòng chọn file dữ liệu</option>';
+          const dataFileList = document.getElementById("data-file-list");
+          dataFileList.innerHTML = "";
+
+          if (!dataFiles || dataFiles.length === 0) {
+            dataFileList.innerHTML =
+              '<div style="padding: 8px; color: #718096; font-size: 13px">Chưa có file dữ liệu trong thư mục data</div>';
+            return;
+          }
 
           dataFiles.forEach((file) => {
-            const option = document.createElement("option");
-            option.value = file.path;
-            option.textContent = `${file.name} (${file.size})`;
-            dataFileSelect.appendChild(option);
+            const label = document.createElement("label");
+            label.className = "file-checkbox-item";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.className = "data-file-checkbox";
+            checkbox.value = file.path;
+            checkbox.dataset.name = file.name;
+            checkbox.checked = previousSelected.has(file.path);
+
+            checkbox.addEventListener("change", () => {
+              syncSelectAllCheckbox();
+              loadData();
+            });
+
+            const span = document.createElement("span");
+            span.textContent = `${file.name} (${file.size})`;
+
+            label.appendChild(checkbox);
+            label.appendChild(span);
+            dataFileList.appendChild(label);
           });
 
+          syncSelectAllCheckbox();
           console.log("✅ Data file list loaded successfully:", dataFiles);
         } catch (error) {
           console.error("❌ Failed to load data file list:", error);
-          showStatus("error", "Không tải được danh sách file dữ liệu");
+          showStatus(
+            "error",
+            "Không tải được danh sách file dữ liệu",
+            "data-status",
+          );
         }
       }
 
-      // Load data file
+      // Load data file(s)
       async function loadData() {
-        const filePath = document.getElementById("data-file-select").value;
+        const filePaths = getSelectedFilePaths();
 
-        if (!filePath) {
-          showStatus("error", "Vui lòng chọn file dữ liệu", "data-status");
+        if (filePaths.length === 0) {
+          selectedDataFiles = [];
+          currentDataFile = null;
+          currentDataInfo = null;
+          document.getElementById("data-info").style.display = "none";
+          showStatus(
+            "info",
+            "Chưa chọn file dữ liệu nào. Hãy tick chọn ít nhất 1 file.",
+            "data-status",
+          );
+          updatePredictButtonState();
           return;
         }
 
-        const fileName = filePath.split(/[/\\]/).pop();
+        const fileNames = filePaths.map((p) => p.split(/[/\\]/).pop());
+        const loadDataBtn = document.getElementById("load-data-btn");
 
         try {
           showLoading(true);
-          document.getElementById("load-data-btn").disabled = true;
+          if (loadDataBtn) loadDataBtn.disabled = true;
           showStatus(
             "info",
-            `⏳ Đang nạp dữ liệu từ ${fileName}...`,
+            `⏳ Đang nạp ${filePaths.length} file: ${fileNames.join(", ")}...`,
             "data-status",
           );
 
-          const response = await axios.post("/api/load-data", {
-            file_path: filePath,
-          });
-
-          if (response.data.success) {
-            currentDataFile = filePath;
-            currentDataInfo = response.data.data_info;
-            showDataInfo(response.data.data_info);
-            const info = response.data.data_info;
-            showStatus(
-              "success",
-              `✅ Đã nạp thành công: ${fileName} (${info.rows} nến)`,
-              "data-status",
-            );
-
-            // Update prediction button status
-            updatePredictButtonState();
-
-            console.log(
-              "✅ Data loaded successfully:",
-              response.data.data_info,
-            );
-          } else {
-            showStatus("error", `❌ ${response.data.error}`, "data-status");
+          const loadedSummary = [];
+          for (const filePath of filePaths) {
+            const fName = filePath.split(/[/\\]/).pop();
+            const response = await axios.post("/api/load-data", {
+              file_path: filePath,
+            });
+            if (response.data.success) {
+              loadedDataInfos[filePath] = response.data.data_info;
+              loadedSummary.push(
+                `${fName} (${response.data.data_info.rows} nến)`,
+              );
+            } else {
+              throw new Error(`${fName}: ${response.data.error}`);
+            }
           }
+
+          selectedDataFiles = filePaths;
+          currentDataFile = filePaths[filePaths.length - 1];
+          currentDataInfo = loadedDataInfos[currentDataFile];
+          showDataInfo(currentDataInfo);
+
+          showStatus(
+            "success",
+            `✅ Đã nạp thành công (${filePaths.length} file): ${loadedSummary.join(" | ")}`,
+            "data-status",
+          );
+
+          updatePredictButtonState();
         } catch (error) {
           console.error("❌ Data loading failed:", error);
           showStatus(
@@ -469,7 +530,7 @@
           );
         } finally {
           showLoading(false);
-          document.getElementById("load-data-btn").disabled = false;
+          if (loadDataBtn) loadDataBtn.disabled = false;
         }
       }
 
@@ -710,16 +771,29 @@
         updateSliderFromInputs();
       }
 
-      // Start prediction
+      // Start prediction (supports 1 or multiple selected files)
       async function startPrediction() {
-        if (!currentDataFile) {
-          showStatus("error", "Vui lòng nạp dữ liệu trước");
+        const filesToPredict =
+          selectedDataFiles.length > 0
+            ? selectedDataFiles
+            : currentDataFile
+              ? [currentDataFile]
+              : [];
+
+        if (filesToPredict.length === 0) {
+          showStatus(
+            "error",
+            "Vui lòng tick chọn và nạp ít nhất 1 file dữ liệu trước",
+            "data-status",
+          );
           return;
         }
 
         if (!modelLoaded) {
-          showStatus("error", "Vui lòng tải mô hình trước");
-          return;
+          await loadModel();
+          if (!modelLoaded) {
+            return;
+          }
         }
 
         try {
@@ -728,22 +802,21 @@
 
           const lookback = parseInt(document.getElementById("lookback").value);
           const predLen = parseInt(document.getElementById("pred-len").value);
+          const isFutureMode = document.getElementById("future-mode").checked;
 
-          // Get selected time range from time window slider
+          // Get selected percentage from time window slider
           const startHandle = document.getElementById("start-handle");
-          const startPercentage = parseFloat(startHandle.style.left) / 100;
+          const startPercentage =
+            parseFloat(startHandle.style.left || "0") / 100;
 
-          if (!sliderData) {
-            showStatus("error", "Thanh chọn thời gian chưa được khởi tạo");
+          if (!isFutureMode && !sliderData) {
+            showStatus(
+              "error",
+              "Thanh chọn thời gian chưa được khởi tạo",
+              "data-status",
+            );
             return;
           }
-
-          // Calculate selected time range
-          const totalTime =
-            sliderData.endDate.getTime() - sliderData.startDate.getTime();
-          const startTime =
-            sliderData.startDate.getTime() + totalTime * startPercentage;
-          const startDate = new Date(startTime);
 
           // Get prediction quality parameters
           const temperature = parseFloat(
@@ -754,35 +827,77 @@
             document.getElementById("sample-count").value,
           );
 
-          let predictionParams = {
-            file_path: currentDataFile,
-            lookback: lookback,
-            pred_len: predLen,
-            start_date: startDate.toISOString().slice(0, 16), // Format as YYYY-MM-DDTHH:MM
-            temperature: temperature,
-            top_p: topP,
-            sample_count: sampleCount,
-          };
-          if (document.getElementById("future-mode").checked) {
-            delete predictionParams.start_date;
+          const multiContainer = document.getElementById(
+            "multi-results-container",
+          );
+          multiContainer.innerHTML = "";
+          document.getElementById("chart").style.display = "none";
+          document.getElementById("comparison-section").style.display = "none";
+
+          let successCount = 0;
+          for (let idx = 0; idx < filesToPredict.length; idx++) {
+            const filePath = filesToPredict[idx];
+            const fileName = filePath.split(/[/\\]/).pop();
+
+            const requirement = document.getElementById("predict-requirement");
+            requirement.textContent = `⏳ Đang dự báo (${idx + 1}/${filesToPredict.length}): ${fileName}...`;
+            requirement.style.color = "#2b6cb0";
+
+            let predictionParams = {
+              file_path: filePath,
+              lookback: lookback,
+              pred_len: predLen,
+              temperature: temperature,
+              top_p: topP,
+              sample_count: sampleCount,
+            };
+
+            if (!isFutureMode) {
+              const fileInfo = loadedDataInfos[filePath] || currentDataInfo;
+              if (fileInfo) {
+                const fStart = new Date(fileInfo.start_date);
+                const fEnd = new Date(fileInfo.end_date);
+                const totalTime = fEnd.getTime() - fStart.getTime();
+                const startTime =
+                  fStart.getTime() + totalTime * startPercentage;
+                const startDate = new Date(startTime);
+                predictionParams.start_date = startDate
+                  .toISOString()
+                  .slice(0, 16);
+              }
+            }
+
+            console.log(
+              `🚀 Starting prediction (${idx + 1}/${filesToPredict.length}):`,
+              predictionParams,
+            );
+
+            const response = await axios.post("/api/predict", predictionParams);
+
+            if (response.data.success) {
+              successCount++;
+              renderPredictionCard(
+                response.data,
+                fileName,
+                idx,
+                filesToPredict.length,
+              );
+            } else {
+              throw new Error(`${fileName}: ${response.data.error}`);
+            }
           }
 
-          console.log("🚀 Starting prediction, parameters:", predictionParams);
-
-          const response = await axios.post("/api/predict", predictionParams);
-
-          if (response.data.success) {
-            // Display prediction results
-            displayPredictionResult(response.data);
-            showStatus("success", response.data.message);
-          } else {
-            showStatus("error", response.data.error);
-          }
+          showStatus(
+            "success",
+            `✅ Đã hoàn tất dự báo cho ${successCount}/${filesToPredict.length} file!`,
+            "data-status",
+          );
         } catch (error) {
           console.error("❌ Prediction failed:", error);
           showStatus(
             "error",
-            `Dự báo thất bại: ${error.response?.data?.error || error.message}`,
+            `❌ Dự báo thất bại: ${error.response?.data?.error || error.message}`,
+            "data-status",
           );
         } finally {
           showLoading(false);
@@ -790,18 +905,109 @@
         }
       }
 
-      // Display prediction results
-      function displayPredictionResult(result) {
-        // Display chart
-        const chartData = JSON.parse(result.chart);
-        Plotly.newPlot("chart", chartData.data, chartData.layout);
+      // Render a stacked prediction card for each file
+      function renderPredictionCard(result, fileName, index, totalCount) {
+        const multiContainer = document.getElementById(
+          "multi-results-container",
+        );
 
-        // Display comparison analysis (if actual data exists)
-        if (result.has_comparison) {
-          displayComparisonAnalysis(result);
-        } else {
-          document.getElementById("comparison-section").style.display = "none";
+        const card = document.createElement("div");
+        card.className = "multi-result-card";
+
+        const chartDivId = `chart-item-${index}`;
+        const predictions = result.prediction_results || [];
+        const actuals = result.actual_data || [];
+        const errorStats = getPredictionQuality(predictions, actuals);
+        const hasActuals = actuals.length > 0;
+
+        const minLen = hasActuals
+          ? Math.min(predictions.length, actuals.length)
+          : predictions.length;
+        const fmt = (v) => (v === undefined ? "—" : v.toFixed(4));
+
+        let rowsHtml = "";
+        for (let i = minLen - 1; i >= 0; i--) {
+          const pred = predictions[i];
+          const act = actuals[i] || {};
+          rowsHtml += `
+            <tr>
+              <td>${new Date(pred.timestamp).toLocaleString()}</td>
+              <td>${fmt(act.open)}</td>
+              <td>${pred.open.toFixed(4)}</td>
+              <td>${fmt(act.high)}</td>
+              <td>${pred.high.toFixed(4)}</td>
+              <td>${fmt(act.low)}</td>
+              <td>${pred.low.toFixed(4)}</td>
+              <td>${fmt(act.close)}</td>
+              <td>${pred.close.toFixed(4)}</td>
+            </tr>
+          `;
         }
+
+        card.innerHTML = `
+          <h3 class="result-file-title">📈 [${index + 1}/${totalCount}] File: ${fileName}</h3>
+          <div id="${chartDivId}" class="multi-chart-plot" style="width: 100%; height: 600px;"></div>
+          <div class="comparison-section" style="margin-top: 16px;">
+            <h3>📊 Chi tiết kết quả & đối chiếu (${fileName})</h3>
+            <div class="comparison-info">
+              <p><strong>Loại dự báo:</strong> <span>${result.prediction_type}</span></p>
+              <p><strong>Dữ liệu đối chiếu:</strong> <span>${hasActuals ? `${actuals.length} nến thực tế` : "Dự báo tương lai (chưa có nến thực tế)"}</span></p>
+            </div>
+            ${
+              hasActuals
+                ? `
+            <div class="error-stats">
+              <div class="error-stat">
+                <h4>Sai số tuyệt đối trung bình</h4>
+                <div class="value">${errorStats.mae.toFixed(4)}</div>
+                <div class="unit">Đơn vị giá</div>
+              </div>
+              <div class="error-stat">
+                <h4>Căn sai số bình phương trung bình</h4>
+                <div class="value">${errorStats.rmse.toFixed(4)}</div>
+                <div class="unit">Đơn vị giá</div>
+              </div>
+              <div class="error-stat">
+                <h4>Sai số phần trăm tuyệt đối trung bình</h4>
+                <div class="value">${errorStats.mape.toFixed(2)}</div>
+                <div class="unit">%</div>
+              </div>
+            </div>`
+                : ""
+            }
+            <div class="error-details">
+              <h4>Chi tiết dữ liệu nến (Mới nhất lên đầu):</h4>
+              <div style="max-height: 300px; overflow-y: auto">
+                <table class="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Thời gian</th>
+                      <th>Mở cửa thực tế</th>
+                      <th>Mở cửa dự báo</th>
+                      <th>Cao nhất thực tế</th>
+                      <th>Cao nhất dự báo</th>
+                      <th>Thấp nhất thực tế</th>
+                      <th>Thấp nhất dự báo</th>
+                      <th>Đóng cửa thực tế</th>
+                      <th>Đóng cửa dự báo</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rowsHtml}</tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+
+        multiContainer.appendChild(card);
+
+        const chartData = JSON.parse(result.chart);
+        if (chartData.layout) {
+          chartData.layout.title = `${fileName} — ${chartData.layout.title || ""}`;
+        }
+        Plotly.newPlot(chartDivId, chartData.data, chartData.layout, {
+          responsive: true,
+        });
       }
 
       // Display comparison analysis
@@ -900,56 +1106,59 @@
 
       // Set up event listeners
       function setupEventListeners() {
-        // Load model button
+        // Load model button (optional if commented out)
         document
           .getElementById("load-model-btn")
-          .addEventListener("click", loadModel);
+          ?.addEventListener("click", loadModel);
 
         // Auto load model when model or device selection changes
         document
           .getElementById("model-select")
-          .addEventListener("change", () => {
+          ?.addEventListener("change", () => {
             if (document.getElementById("model-select").value) {
               loadModel();
             }
           });
         document
           .getElementById("device-select")
-          .addEventListener("change", () => {
+          ?.addEventListener("change", () => {
             if (document.getElementById("model-select").value) {
               loadModel();
             }
           });
 
-        // Load data button
+        // Load data button (optional if commented out)
         document
           .getElementById("load-data-btn")
-          .addEventListener("click", loadData);
+          ?.addEventListener("click", loadData);
 
-        // Auto load data when file selection changes
-        document
-          .getElementById("data-file-select")
-          .addEventListener("change", () => {
-            if (document.getElementById("data-file-select").value) {
-              loadData();
-            }
+        // Select / deselect all data files
+        const selectAllCheckbox = document.getElementById("select-all-files");
+        if (selectAllCheckbox) {
+          selectAllCheckbox.addEventListener("change", (e) => {
+            const checked = e.target.checked;
+            document.querySelectorAll(".data-file-checkbox").forEach((cb) => {
+              cb.checked = checked;
+            });
+            loadData();
           });
+        }
 
         document
           .getElementById("fetch-btc-btn")
-          .addEventListener("click", () => fetchMarketData("binance"));
+          ?.addEventListener("click", () => fetchMarketData("binance"));
         document
           .getElementById("fetch-gold-btn")
-          .addEventListener("click", () => fetchMarketData("gold-paxg"));
+          ?.addEventListener("click", () => fetchMarketData("gold-paxg"));
         document
           .getElementById("fetch-gld-btn")
-          .addEventListener("click", () => fetchMarketData("gold-alpha"));
+          ?.addEventListener("click", () => fetchMarketData("gold-alpha"));
 
         // Auto fetch Binance data when candle interval changes
         document
           .getElementById("market-interval")
-          .addEventListener("change", () => {
-            if (document.getElementById("binance-symbol").value.trim()) {
+          ?.addEventListener("change", () => {
+            if (document.getElementById("binance-symbol")?.value.trim()) {
               fetchMarketData("binance");
             }
           });
@@ -957,7 +1166,7 @@
         // Prediction button
         document
           .getElementById("predict-btn")
-          .addEventListener("click", startPrediction);
+          ?.addEventListener("click", startPrediction);
 
         // Prediction quality parameter sliders
         document
@@ -978,6 +1187,32 @@
         document
           .getElementById("pred-len")
           .addEventListener("input", updateSliderFromInputs);
+
+        // Toggle control panel collapse / expand
+        const collapseBtn = document.getElementById("collapse-panel-btn");
+        const expandBtn = document.getElementById("expand-panel-btn");
+        const mainContent = document.querySelector(".main-content");
+
+        const resizeAllCharts = () => {
+          if (!window.Plotly) return;
+          document.querySelectorAll(".multi-chart-plot").forEach((el) => {
+            Plotly.Plots.resize(el);
+          });
+        };
+
+        if (collapseBtn && expandBtn && mainContent) {
+          collapseBtn.addEventListener("click", () => {
+            mainContent.classList.add("panel-collapsed");
+            expandBtn.style.display = "inline-flex";
+            setTimeout(resizeAllCharts, 60);
+          });
+
+          expandBtn.addEventListener("click", () => {
+            mainContent.classList.remove("panel-collapsed");
+            expandBtn.style.display = "none";
+            setTimeout(resizeAllCharts, 60);
+          });
+        }
       }
 
       // Display status information
